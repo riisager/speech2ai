@@ -10,31 +10,31 @@ Below is a flow diagram representing the warm-start socket client-daemon archite
 
 ```mermaid
 graph TD
-    A[Bruger trykker genvejstast] --> B(Cinnamon afvikler trigger.py)
-    B --> C{Er daemon aktiv?<br>findes /tmp/speech2ai.sock?}
+    A[User presses shortcut key] --> B(Cinnamon executes trigger.py)
+    B --> C{Is daemon active?<br>does /tmp/speech2ai.sock exist?}
     
     %% Warm Start Flow
-    C -- Ja: Warm Start --> D[Send signal + tilstand til socket]
-    D --> E[trigger.py afsluttes straks <20ms]
+    C -- Yes: Warm Start --> D[Send trigger + mode to socket]
+    D --> E[trigger.py exits immediately <20ms]
     
     %% Cold Start Flow
-    C -- Nej: Cold Start --> F[Afvikl main.py direkte]
-    F --> G[Optag lyd, transkriber og indsæt kold]
+    C -- No: Cold Start --> F[Execute main.py directly]
+    F --> G[Record audio, transcribe, and paste cold]
     
     %% Daemon processing
-    D -.-> H[Daemon modtager trigger]
-    H --> I[Hent markeret tekst med Ctrl+C kopi-backup]
-    I --> J[Vis præ-loaded overlay øjeblikkeligt deiconify]
-    J --> K[Optag lyd indtil genvejstast slippes]
-    K --> L[Transkriber audio via Keep-Alive HTTP Session]
-    L --> M{Er der markeret tekst?}
+    D -.-> H[Daemon receives socket trigger]
+    H --> I[Capture selected text via Ctrl+C backup/restore]
+    I --> J[Reveal pre-loaded overlay instantly deiconify]
+    J --> K[Record audio until shortcut is released]
+    K --> L[Transcribe audio using Keep-Alive HTTP Session]
+    L --> M{Is there selected text?}
     
-    M -- Ja --> N[AI omskriver baseret på kontekst + diktat]
-    M -- Nej --> O[AI omskriver / indsætter diktat rent]
+    M -- Yes --> N[AI processes context + voice instruction]
+    M -- No --> O[AI proofreads / transcribes raw dictation]
     
-    N --> P[Skriv resultat permanent til clipboard]
+    N --> P[Write result permanently to clipboard]
     O --> P
-    P --> Q[Simuler Ctrl+V paste og skjul overlay withdraw]
+    P --> Q[Simulate Ctrl+V paste & hide overlay withdraw]
 ```
 
 ---
