@@ -6,7 +6,9 @@ import sys
 class ClipboardPaster:
     @staticmethod
     def paste(text):
-        """Pastes the text by writing it to the clipboard, triggering Ctrl+V, and restoring the old clipboard."""
+        """Pastes the text by writing it to the clipboard and triggering Ctrl+V.
+        Leaves the pasted text in the clipboard so the user can paste it again.
+        """
         if not text:
             return
             
@@ -15,32 +17,15 @@ class ClipboardPaster:
         
         if not is_wayland:
             # --- X11 implementation using xclip and xdotool ---
-            old_clip = None
             try:
-                # 1. Backup existing clipboard content as raw bytes to preserve any formatting/type
-                old_clip = subprocess.check_output(
-                    ["xclip", "-selection", "clipboard", "-o"], 
-                    stderr=subprocess.DEVNULL
-                )
-            except Exception:
-                pass
-
-            try:
-                # 2. Put new text in clipboard
+                # 1. Put new text in clipboard
                 p = subprocess.Popen(["xclip", "-selection", "clipboard", "-in"], stdin=subprocess.PIPE)
                 p.communicate(input=text.encode('utf-8'))
 
-                # 3. Trigger Ctrl+V
+                # 2. Trigger Ctrl+V
                 # We use --clearmodifiers to prevent physical keys (like Super or Shift)
                 # from interfering with the Ctrl+V key combination.
                 subprocess.run(["xdotool", "key", "--clearmodifiers", "ctrl+v"])
-                
-                # 4. Wait a split second for the target application to process the paste command,
-                # then restore the original clipboard content.
-                time.sleep(0.15)
-                if old_clip is not None:
-                    p = subprocess.Popen(["xclip", "-selection", "clipboard", "-in"], stdin=subprocess.PIPE)
-                    p.communicate(input=old_clip)
             except Exception as e:
                 print(f"X11 paste failed: {e}", file=sys.stderr)
                 # Fallback to direct typing if clipboard paste failed
@@ -51,13 +36,6 @@ class ClipboardPaster:
         else:
             # --- Wayland implementation fallback ---
             print("Wayland session detected. Attempting wl-copy and paste...", file=sys.stderr)
-            old_clip = None
-            try:
-                # Backup old clipboard
-                old_clip = subprocess.check_output(["wl-paste", "-n"], stderr=subprocess.DEVNULL)
-            except Exception:
-                pass
-
             try:
                 # Copy new text to clipboard
                 p = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE)
@@ -81,12 +59,6 @@ class ClipboardPaster:
                         subprocess.run(["wtype", "-M", "ctrl", "v"], check=True, stderr=subprocess.DEVNULL)
                     except Exception:
                         print("Warning: Neither ydotool nor wtype could trigger Ctrl+V on Wayland.", file=sys.stderr)
-                
-                # Wait and restore
-                time.sleep(0.15)
-                if old_clip is not None:
-                    p = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE)
-                    p.communicate(input=old_clip)
             except Exception as e:
                 print(f"Wayland copy/paste failed: {e}", file=sys.stderr)
 
