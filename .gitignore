@@ -1,0 +1,25 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Audio temporary files
+*.wav
+/tmp/speech2ai2text*
+
+# Configuration (contains private API keys)
+config.json
+
+# Local IDEs
+.idea/
+.vscode/
+.project
+.pydevproject
+.settings/
+.agents/
+.gemini/

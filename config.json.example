@@ -1,0 +1,22 @@
+{
+    "selected_engine": "gemini_cloud",
+    "rewrite_locally": false,
+    "local_llm_model": "llama3",
+    "local_whisper_path": "/usr/bin/whisper",
+    "local_model_path": "",
+    "groq_api_key": "YOUR_GROQ_API_KEY",
+    "gemini_api_key": "YOUR_GEMINI_API_KEY",
+    "gemini_model": "gemini-3.5-flash",
+    "enable_notifications": true,
+    "enable_beeps": true,
+    "beep_volume": 0.2,
+    "enable_gui_overlay": true,
+    "shortcut_direct": "<Super>y",
+    "shortcut_ai": "<Super><Shift>y",
+    "shortcut_ai_prompt": "<Super><Control>y",
+    "prompt_ai": "You are a professional editor. Clean up the following spoken transcription. Fix grammatical errors, remove stutters, filler words, and clean up sentence structure. Keep the language of the original text (Danish or English). Output ONLY the cleaned text.",
+    "prompt_ai_prompt": "You are an expert technical director. Translate the following spoken Danish/English description into a highly precise, structured, and action-oriented prompt for an AI coding agent (like Cursor or Antigravity). Restructure the user's spoken thoughts into clear steps, but do NOT assume or hallucinate specific programming languages, frameworks, or libraries unless they are explicitly mentioned in the input. Keep the prompt aligned strictly with what the user requested without adding external technical assumptions. Output ONLY the final prompt. No conversational filler or markdown code blocks.",
+    "max_recording_time": 30,
+    "ollama_api_url": "http://localhost:11434",
+    "groq_model": "llama-3.1-8b-instant"
+}
