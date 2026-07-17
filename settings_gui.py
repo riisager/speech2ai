@@ -1,6 +1,8 @@
 import os
 import sys
 import json
+import threading
+import requests
 from i18n import _t
 
 # Fallback check for customtkinter dependency
@@ -61,6 +63,141 @@ class CollapsibleFrame(ctk.CTkFrame):
             self.content_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
             self.toggle_btn.configure(text="▼ " + self.title)
             self.expanded = True
+
+class ModelInstallProgressWindow(ctk.CTkToplevel):
+    def __init__(self, parent, target_model):
+        super().__init__(parent)
+        self.title(_t("ollama_install_title"))
+        self.geometry("600x400")
+        self.transient(parent)
+        self.resizable(False, False)
+        
+        parent.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() // 2) - 300
+        y = parent.winfo_y() + (parent.winfo_height() // 2) - 200
+        self.geometry(f"+{x}+{y}")
+        
+        self.log_text = ctk.CTkTextbox(self, height=280, font=ctk.CTkFont(family="monospace", size=11))
+        self.log_text.pack(fill="both", expand=True, padx=20, pady=(20, 10))
+        
+        self.progress_bar = ctk.CTkProgressBar(self)
+        self.progress_bar.pack(fill="x", padx=20, pady=5)
+        self.progress_bar.set(0.0)
+        
+        self.close_btn = ctk.CTkButton(self, text=_t("ollama_install_btn_close"), command=self.destroy, state="disabled")
+        self.close_btn.pack(pady=(10, 15))
+        
+        self.target_model = target_model
+        self.parent = parent
+        
+        self.thread = threading.Thread(target=self.run_installation, daemon=True)
+        self.thread.start()
+
+    def log(self, msg):
+        self.log_text.insert("end", msg)
+        self.log_text.see("end")
+
+    def run_installation(self):
+        import shutil
+        import subprocess
+        import time
+        
+        self.log(_t("ollama_install_starting"))
+        self.log(_t("ollama_install_checking"))
+        
+        # 1. Check and Install Ollama
+        is_installed = shutil.which("ollama") is not None
+        if not is_installed:
+            self.log(_t("ollama_install_missing"))
+            cmd = "pkexec sh -c 'curl -fsSL https://ollama.com/install.sh | sh'"
+            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            process.communicate()
+            if process.returncode != 0:
+                self.log(_t("ollama_install_auth_failed"))
+                self.log(_t("ollama_install_failed"))
+                self.close_btn.configure(state="normal")
+                return
+            self.log(_t("ollama_install_ok"))
+        else:
+            self.log(_t("ollama_install_present"))
+        
+        # 2. Start Service if not running
+        ollama_url = "http://localhost:11434"
+        is_running = False
+        try:
+            res = requests.get(ollama_url, timeout=2)
+            is_running = (res.status_code == 200)
+        except Exception:
+            pass
+            
+        if not is_running:
+            self.log(_t("ollama_install_start_service"))
+            subprocess.run(["pkexec", "systemctl", "start", "ollama"])
+            time.sleep(3) # Wait for start
+            try:
+                res = requests.get(ollama_url, timeout=2)
+                is_running = (res.status_code == 200)
+            except Exception:
+                pass
+                
+            if not is_running:
+                self.log(_t("ollama_install_failed"))
+                self.close_btn.configure(state="normal")
+                return
+                
+        self.log(_t("ollama_install_service_ok"))
+        
+        # 3. Pull model and update progress bar
+        self.log(_t("ollama_install_pulling").format(model=self.target_model))
+        pull_url = f"{ollama_url}/api/pull"
+        payload = {"model": self.target_model, "stream": True}
+        
+        try:
+            response = requests.post(pull_url, json=payload, stream=True, timeout=900)
+            if response.status_code == 200:
+                last_status = ""
+                for line in response.iter_lines():
+                    if line:
+                        data = json.loads(line.decode("utf-8"))
+                        status = data.get("status", "")
+                        completed = data.get("completed", 0)
+                        total = data.get("total", 0)
+                        
+                        if status == "success":
+                            break
+                            
+                        if total > 0:
+                            percent = (completed / total) * 100
+                            self.progress_bar.set(completed / total)
+                            status_line = f"{status}: {percent:.1f}% ({completed//1024//1024}MB / {total//1024//1024}MB)\r"
+                        else:
+                            status_line = f"{status}\n"
+                            
+                        if status_line != last_status:
+                            if "\r" in status_line:
+                                # Overwrite the previous status line in text box
+                                self.log_text.delete("end-2l", "end-1c")
+                                self.log(status_line + "\n")
+                            else:
+                                self.log(status_line)
+                            last_status = status_line
+                            
+                self.progress_bar.set(1.0)
+                self.log(_t("ollama_install_success").format(model=self.target_model))
+                
+                # Update parent GUI elements and write configuration
+                self.parent.rewrite_local_var.set(True)
+                self.parent.ollama_model_entry.delete(0, "end")
+                self.parent.ollama_model_entry.insert(0, self.target_model)
+                self.parent.save_settings()
+            else:
+                self.log(_t("ollama_install_failed"))
+        except Exception as e:
+            self.log(f"Error: {e}\n")
+            self.log(_t("ollama_install_failed"))
+            
+        self.close_btn.configure(state="normal")
+
 
 class Speech2AI2TextSettingsApp(ctk.CTk):
     def __init__(self):
@@ -221,6 +358,38 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.ollama_url_entry.insert(0, self.config.get("ollama_api_url", "http://localhost:11434"))
         self.ollama_url_entry.pack(anchor="w", fill="x", padx=10, pady=(5, 10))
 
+        # Local Model Downloader / Installer Section
+        lbl_install_select = ctk.CTkLabel(ollama_cf.content_frame, text=_t("ollama_install_select_lbl"), font=ctk.CTkFont(size=12, weight="bold"))
+        lbl_install_select.pack(anchor="w", padx=10, pady=(15, 0))
+        
+        self.installer_model_var = ctk.StringVar(value="gemma4:e2b")
+        model_options = [
+            "gemma4:e2b",
+            "gemma4:e4b",
+            "gemma4:12b",
+            "gemma4:26b",
+            "gemma2:2b",
+            "llama3",
+            "phi3"
+        ]
+        self.installer_model_dropdown = ctk.CTkOptionMenu(
+            ollama_cf.content_frame,
+            values=model_options,
+            variable=self.installer_model_var,
+            width=250
+        )
+        self.installer_model_dropdown.pack(anchor="w", padx=10, pady=5)
+        
+        btn_install_gemma = ctk.CTkButton(
+            ollama_cf.content_frame,
+            text=_t("ollama_install_btn"),
+            command=self.start_local_model_installation,
+            fg_color="#27ae60",
+            hover_color="#219150",
+            font=ctk.CTkFont(weight="bold")
+        )
+        btn_install_gemma.pack(anchor="w", padx=10, pady=(5, 15))
+
         # Local Whisper Settings (Collapsible)
         is_whisper = self.engine_var.get() == "local_whisper"
         whisper_cf = CollapsibleFrame(scroll_frame, title=_t("whisper_title"), expanded=is_whisper)
@@ -235,6 +404,10 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.whisper_model_entry.pack(anchor="w", fill="x", padx=10, pady=(5, 10))
 
         self.add_save_button(scroll_frame)
+
+    def start_local_model_installation(self):
+        target_model = self.installer_model_var.get()
+        ModelInstallProgressWindow(self, target_model)
 
     def setup_system_shortcuts_tab(self):
         tab = self.tabview.tab(_t("tab_system"))
