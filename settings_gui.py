@@ -71,20 +71,43 @@ class ModelInstallProgressWindow(ctk.CTkToplevel):
         self.geometry("600x400")
         self.transient(parent)
         self.resizable(False, False)
+        self.configure(fg_color="#090D16")
         
         parent.update_idletasks()
         x = parent.winfo_x() + (parent.winfo_width() // 2) - 300
         y = parent.winfo_y() + (parent.winfo_height() // 2) - 200
         self.geometry(f"+{x}+{y}")
         
-        self.log_text = ctk.CTkTextbox(self, height=280, font=ctk.CTkFont(family="monospace", size=11))
+        self.log_text = ctk.CTkTextbox(
+            self, 
+            height=280, 
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(family="monospace", size=11)
+        )
         self.log_text.pack(fill="both", expand=True, padx=20, pady=(20, 10))
         
-        self.progress_bar = ctk.CTkProgressBar(self)
+        self.progress_bar = ctk.CTkProgressBar(
+            self,
+            progress_color="#6366F1",
+            fg_color="#1E293B"
+        )
         self.progress_bar.pack(fill="x", padx=20, pady=5)
         self.progress_bar.set(0.0)
         
-        self.close_btn = ctk.CTkButton(self, text=_t("ollama_install_btn_close"), command=self.destroy, state="disabled")
+        self.close_btn = ctk.CTkButton(
+            self, 
+            text=_t("ollama_install_btn_close"), 
+            corner_radius=8,
+            fg_color="#6366F1",
+            hover_color="#4F46E5",
+            text_color="#FFFFFF",
+            command=self.destroy, 
+            state="disabled"
+        )
         self.close_btn.pack(pady=(10, 15))
         
         self.target_model = target_model
@@ -208,6 +231,10 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         
+        # Set modern dark styling
+        ctk.set_appearance_mode("dark")
+        self.configure(fg_color="#090D16")
+        
         self.title(_t("window_title"))
         self.geometry("800x700")
         self.minsize(700, 600)
@@ -263,8 +290,17 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             return False
 
     def create_widgets(self):
-        # Create Tabview - filling the main window responsively
-        self.tabview = ctk.CTkTabview(self)
+        # Create Tabview - styled with Slate background and Indigo accents
+        self.tabview = ctk.CTkTabview(
+            self,
+            fg_color="#090D16",
+            segmented_button_fg_color="#131A26",
+            segmented_button_selected_color="#6366F1",
+            segmented_button_selected_hover_color="#4F46E5",
+            segmented_button_unselected_color="#131A26",
+            segmented_button_unselected_hover_color="#1E293B",
+            text_color="#E2E8F0"
+        )
         self.tabview.pack(fill="both", expand=True, padx=15, pady=15)
         
         self.tabview.add(_t("tab_cloud"))
@@ -284,19 +320,29 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             scroll_frame, 
             text=_t("btn_save"), 
             command=self.save_settings, 
-            height=40, 
-            font=ctk.CTkFont(weight="bold")
+            height=42, 
+            corner_radius=8,
+            fg_color="#6366F1",
+            hover_color="#4F46E5",
+            text_color="#FFFFFF",
+            font=ctk.CTkFont(size=13, weight="bold")
         )
         btn_save.pack(fill="x", pady=(20, 10))
 
     def setup_engines_tab(self):
         tab = self.tabview.tab(_t("tab_cloud"))
+        tab.configure(fg_color="#090D16")
         
         scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Engine selection
-        lbl_engine = ctk.CTkLabel(scroll_frame, text=_t("speech_engine_lbl"), font=ctk.CTkFont(size=14, weight="bold"))
+        lbl_engine = ctk.CTkLabel(
+            scroll_frame, 
+            text=_t("speech_engine_lbl"), 
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
         lbl_engine.pack(anchor="w", pady=(10, 5))
         
         self.engine_var = ctk.StringVar(value=self.config.get("selected_engine", "gemini_cloud"))
@@ -304,45 +350,96 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             scroll_frame, 
             values=["gemini_cloud", "groq_cloud", "local_whisper"],
             variable=self.engine_var,
-            width=250
+            width=250,
+            fg_color="#131A26",
+            button_color="#1E293B",
+            button_hover_color="#334155",
+            dropdown_fg_color="#131A26",
+            dropdown_hover_color="#1E293B",
+            dropdown_text_color="#E2E8F0",
+            text_color="#E2E8F0",
+            corner_radius=8
         )
         engine_dropdown.pack(anchor="w", pady=(0, 20))
         
-        # Gemini API Settings (Collapsible)
+        # Gemini API Settings (Collapsible Card)
         is_gemini = self.engine_var.get() == "gemini_cloud"
         gemini_cf = CollapsibleFrame(scroll_frame, title=_t("gemini_title"), expanded=is_gemini)
         gemini_cf.pack(fill="x", pady=10)
         
-        self.gemini_key_entry = ctk.CTkEntry(gemini_cf.content_frame, placeholder_text=_t("gemini_key_placeholder"), width=500, show="*")
+        self.gemini_key_entry = ctk.CTkEntry(
+            gemini_cf.content_frame, 
+            placeholder_text=_t("gemini_key_placeholder"), 
+            width=500, 
+            show="*",
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.gemini_key_entry.insert(0, self.config.get("gemini_api_key", ""))
         self.gemini_key_entry.pack(anchor="w", fill="x", padx=10, pady=5)
         
-        self.gemini_model_entry = ctk.CTkEntry(gemini_cf.content_frame, placeholder_text=_t("gemini_model_placeholder"), width=250)
+        self.gemini_model_entry = ctk.CTkEntry(
+            gemini_cf.content_frame, 
+            placeholder_text=_t("gemini_model_placeholder"), 
+            width=250,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.gemini_model_entry.insert(0, self.config.get("gemini_model", "gemini-3.5-flash"))
         self.gemini_model_entry.pack(anchor="w", padx=10, pady=(5, 10))
-
-        # Groq API Settings (Collapsible)
+ 
+        # Groq API Settings (Collapsible Card)
         is_groq = self.engine_var.get() == "groq_cloud"
         groq_cf = CollapsibleFrame(scroll_frame, title=_t("groq_title"), expanded=is_groq)
         groq_cf.pack(fill="x", pady=10)
         
-        self.groq_key_entry = ctk.CTkEntry(groq_cf.content_frame, placeholder_text=_t("groq_key_placeholder"), width=500, show="*")
+        self.groq_key_entry = ctk.CTkEntry(
+            groq_cf.content_frame, 
+            placeholder_text=_t("groq_key_placeholder"), 
+            width=500, 
+            show="*",
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.groq_key_entry.insert(0, self.config.get("groq_api_key", ""))
         self.groq_key_entry.pack(anchor="w", fill="x", padx=10, pady=5)
-
-        self.groq_model_entry = ctk.CTkEntry(groq_cf.content_frame, placeholder_text=_t("groq_model_placeholder"), width=250)
+ 
+        self.groq_model_entry = ctk.CTkEntry(
+            groq_cf.content_frame, 
+            placeholder_text=_t("groq_model_placeholder"), 
+            width=250,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.groq_model_entry.insert(0, self.config.get("groq_model", "llama-3.1-8b-instant"))
         self.groq_model_entry.pack(anchor="w", padx=10, pady=(5, 10))
-
+ 
         self.add_save_button(scroll_frame)
 
     def setup_local_models_tab(self):
         tab = self.tabview.tab(_t("tab_local"))
+        tab.configure(fg_color="#090D16")
         
         scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
-        # Ollama Configuration (Collapsible)
+        # Ollama Configuration (Collapsible Card)
         is_ollama_active = self.config.get("rewrite_locally", False)
         ollama_cf = CollapsibleFrame(scroll_frame, title=_t("ollama_title"), expanded=is_ollama_active)
         ollama_cf.pack(fill="x", pady=10)
@@ -351,20 +448,49 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         chk_rewrite_local = ctk.CTkSwitch(
             ollama_cf.content_frame, 
             text=_t("ollama_switch"),
-            variable=self.rewrite_local_var
+            variable=self.rewrite_local_var,
+            progress_color="#6366F1",
+            text_color="#E2E8F0",
+            button_color="#E2E8F0",
+            button_hover_color="#F8FAFC"
         )
         chk_rewrite_local.pack(anchor="w", padx=10, pady=10)
         
-        self.ollama_model_entry = ctk.CTkEntry(ollama_cf.content_frame, placeholder_text=_t("ollama_model_placeholder"), width=250)
+        self.ollama_model_entry = ctk.CTkEntry(
+            ollama_cf.content_frame, 
+            placeholder_text=_t("ollama_model_placeholder"), 
+            width=250,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.ollama_model_entry.insert(0, self.config.get("local_llm_model", "llama3"))
         self.ollama_model_entry.pack(anchor="w", padx=10, pady=5)
-
-        self.ollama_url_entry = ctk.CTkEntry(ollama_cf.content_frame, placeholder_text=_t("ollama_url_placeholder"), width=500)
+ 
+        self.ollama_url_entry = ctk.CTkEntry(
+            ollama_cf.content_frame, 
+            placeholder_text=_t("ollama_url_placeholder"), 
+            width=500,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.ollama_url_entry.insert(0, self.config.get("ollama_api_url", "http://localhost:11434"))
         self.ollama_url_entry.pack(anchor="w", fill="x", padx=10, pady=(5, 10))
-
+ 
         # Local Model Downloader / Installer Section
-        lbl_install_select = ctk.CTkLabel(ollama_cf.content_frame, text=_t("ollama_install_select_lbl"), font=ctk.CTkFont(size=12, weight="bold"))
+        lbl_install_select = ctk.CTkLabel(
+            ollama_cf.content_frame, 
+            text=_t("ollama_install_select_lbl"), 
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
         lbl_install_select.pack(anchor="w", padx=10, pady=(15, 0))
         
         self.installer_model_var = ctk.StringVar(value="gemma4:e2b")
@@ -381,7 +507,15 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             ollama_cf.content_frame,
             values=model_options,
             variable=self.installer_model_var,
-            width=250
+            width=250,
+            fg_color="#131A26",
+            button_color="#1E293B",
+            button_hover_color="#334155",
+            dropdown_fg_color="#131A26",
+            dropdown_hover_color="#1E293B",
+            dropdown_text_color="#E2E8F0",
+            text_color="#E2E8F0",
+            corner_radius=8
         )
         self.installer_model_dropdown.pack(anchor="w", padx=10, pady=5)
         
@@ -389,83 +523,180 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             ollama_cf.content_frame,
             text=_t("ollama_install_btn"),
             command=self.start_local_model_installation,
-            fg_color="#27ae60",
-            hover_color="#219150",
+            fg_color="#10B981",
+            hover_color="#059669",
+            text_color="#FFFFFF",
+            height=36,
+            corner_radius=8,
             font=ctk.CTkFont(weight="bold")
         )
         btn_install_gemma.pack(anchor="w", padx=10, pady=(5, 15))
-
-        # Local Whisper Settings (Collapsible)
+ 
+        # Local Whisper Settings (Collapsible Card)
         is_whisper = self.engine_var.get() == "local_whisper"
         whisper_cf = CollapsibleFrame(scroll_frame, title=_t("whisper_title"), expanded=is_whisper)
         whisper_cf.pack(fill="x", pady=10)
         
-        self.whisper_path_entry = ctk.CTkEntry(whisper_cf.content_frame, placeholder_text=_t("whisper_path_placeholder"), width=500)
+        self.whisper_path_entry = ctk.CTkEntry(
+            whisper_cf.content_frame, 
+            placeholder_text=_t("whisper_path_placeholder"), 
+            width=500,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.whisper_path_entry.insert(0, self.config.get("local_whisper_path", "/usr/bin/whisper"))
         self.whisper_path_entry.pack(anchor="w", fill="x", padx=10, pady=5)
         
-        self.whisper_model_entry = ctk.CTkEntry(whisper_cf.content_frame, placeholder_text=_t("whisper_model_placeholder"), width=500)
+        self.whisper_model_entry = ctk.CTkEntry(
+            whisper_cf.content_frame, 
+            placeholder_text=_t("whisper_model_placeholder"), 
+            width=500,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.whisper_model_entry.insert(0, self.config.get("local_model_path", ""))
         self.whisper_model_entry.pack(anchor="w", fill="x", padx=10, pady=(5, 10))
-
+ 
         self.add_save_button(scroll_frame)
 
     def start_local_model_installation(self):
         target_model = self.installer_model_var.get()
-        ModelInstallProgressWindow(self, target_model)
 
     def setup_system_shortcuts_tab(self):
         tab = self.tabview.tab(_t("tab_system"))
+        tab.configure(fg_color="#090D16")
         
         scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Feedback & notifications
-        lbl_feedback = ctk.CTkLabel(scroll_frame, text=_t("feedback_title"), font=ctk.CTkFont(size=14, weight="bold"))
+        lbl_feedback = ctk.CTkLabel(
+            scroll_frame, 
+            text=_t("feedback_title"), 
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
         lbl_feedback.pack(anchor="w", pady=(10, 5))
         
         self.notify_var = ctk.BooleanVar(value=self.config.get("enable_notifications", True))
-        chk_notify = ctk.CTkSwitch(scroll_frame, text=_t("chk_notify"), variable=self.notify_var)
+        chk_notify = ctk.CTkSwitch(
+            scroll_frame, 
+            text=_t("chk_notify"), 
+            variable=self.notify_var,
+            progress_color="#6366F1",
+            text_color="#E2E8F0",
+            button_color="#E2E8F0",
+            button_hover_color="#F8FAFC"
+        )
         chk_notify.pack(anchor="w", pady=5)
         
         self.beep_var = ctk.BooleanVar(value=self.config.get("enable_beeps", True))
-        chk_beep = ctk.CTkSwitch(scroll_frame, text=_t("chk_beep"), variable=self.beep_var)
+        chk_beep = ctk.CTkSwitch(
+            scroll_frame, 
+            text=_t("chk_beep"), 
+            variable=self.beep_var,
+            progress_color="#6366F1",
+            text_color="#E2E8F0",
+            button_color="#E2E8F0",
+            button_hover_color="#F8FAFC"
+        )
         chk_beep.pack(anchor="w", pady=5)
         
         self.overlay_var = ctk.BooleanVar(value=self.config.get("enable_gui_overlay", True))
-        chk_overlay = ctk.CTkSwitch(scroll_frame, text=_t("chk_overlay"), variable=self.overlay_var)
+        chk_overlay = ctk.CTkSwitch(
+            scroll_frame, 
+            text=_t("chk_overlay"), 
+            variable=self.overlay_var,
+            progress_color="#6366F1",
+            text_color="#E2E8F0",
+            button_color="#E2E8F0",
+            button_hover_color="#F8FAFC"
+        )
         chk_overlay.pack(anchor="w", pady=5)
         
-        lbl_vol = ctk.CTkLabel(scroll_frame, text=_t("beep_vol_lbl"))
+        lbl_vol = ctk.CTkLabel(
+            scroll_frame, 
+            text=_t("beep_vol_lbl"),
+            text_color="#E2E8F0"
+        )
         lbl_vol.pack(anchor="w", pady=(5, 0))
         
-        self.vol_slider = ctk.CTkSlider(scroll_frame, from_=0.0, to=1.0, width=200)
+        self.vol_slider = ctk.CTkSlider(
+            scroll_frame, 
+            from_=0.0, 
+            to=1.0, 
+            width=200,
+            button_color="#6366F1",
+            button_hover_color="#4F46E5",
+            progress_color="#6366F1",
+            fg_color="#1E293B"
+        )
         self.vol_slider.set(self.config.get("beep_volume", 0.2))
         self.vol_slider.pack(anchor="w", pady=(0, 20))
-
+ 
         # Advanced settings
-        lbl_advanced = ctk.CTkLabel(scroll_frame, text=_t("advanced_title"), font=ctk.CTkFont(size=14, weight="bold"))
+        lbl_advanced = ctk.CTkLabel(
+            scroll_frame, 
+            text=_t("advanced_title"), 
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
         lbl_advanced.pack(anchor="w", pady=(10, 5))
         
-        lbl_max_time = ctk.CTkLabel(scroll_frame, text=_t("max_time_lbl"))
+        lbl_max_time = ctk.CTkLabel(
+            scroll_frame, 
+            text=_t("max_time_lbl"),
+            text_color="#E2E8F0"
+        )
         lbl_max_time.pack(anchor="w", pady=(5, 0))
-        self.max_time_entry = ctk.CTkEntry(scroll_frame, placeholder_text=_t("max_time_placeholder"), width=250)
+        self.max_time_entry = ctk.CTkEntry(
+            scroll_frame, 
+            placeholder_text=_t("max_time_placeholder"), 
+            width=250,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.max_time_entry.insert(0, str(self.config.get("max_recording_time", 30)))
         self.max_time_entry.pack(anchor="w", pady=(5, 20))
-
+ 
         # Language Settings
-        lbl_lang = ctk.CTkLabel(scroll_frame, text=_t("lang_lbl"), font=ctk.CTkFont(size=12, weight="bold"))
+        lbl_lang = ctk.CTkLabel(
+            scroll_frame, 
+            text=_t("lang_lbl"), 
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
         lbl_lang.pack(anchor="w", pady=(5, 0))
         self.lang_var = ctk.StringVar(value=self.config.get("language", "en"))
         self.lang_dropdown = ctk.CTkOptionMenu(
             scroll_frame, 
             values=["da", "en", "es"],
             variable=self.lang_var,
-            width=150
+            width=150,
+            fg_color="#131A26",
+            button_color="#1E293B",
+            button_hover_color="#334155",
+            dropdown_fg_color="#131A26",
+            dropdown_hover_color="#1E293B",
+            dropdown_text_color="#E2E8F0",
+            text_color="#E2E8F0",
+            corner_radius=8
         )
         self.lang_dropdown.pack(anchor="w", pady=(5, 20))
-
-        # Tastaturgenveje (Global Keybindings in Cinnamon) (Collapsible)
+ 
+        # Tastaturgenveje (Global Keybindings in Cinnamon) (Collapsible Card)
         shortcuts_cf = CollapsibleFrame(scroll_frame, title=_t("shortcuts_title"), expanded=False)
         shortcuts_cf.pack(fill="x", pady=10)
         
@@ -478,55 +709,138 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         )
         lbl_sh_desc.pack(anchor="w", padx=10, pady=5)
         
-        lbl_sh_direct = ctk.CTkLabel(shortcuts_cf.content_frame, text=_t("sh_direct_lbl"))
+        lbl_sh_direct = ctk.CTkLabel(
+            shortcuts_cf.content_frame, 
+            text=_t("sh_direct_lbl"),
+            text_color="#E2E8F0"
+        )
         lbl_sh_direct.pack(anchor="w", padx=10, pady=(5, 0))
-        self.sh_direct_entry = ctk.CTkEntry(shortcuts_cf.content_frame, placeholder_text=_t("sh_direct_placeholder"), width=250)
+        self.sh_direct_entry = ctk.CTkEntry(
+            shortcuts_cf.content_frame, 
+            placeholder_text=_t("sh_direct_placeholder"), 
+            width=250,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.sh_direct_entry.insert(0, self.config.get("shortcut_direct", "<Super>y"))
         self.sh_direct_entry.pack(anchor="w", padx=10, pady=5)
         
-        lbl_sh_ai = ctk.CTkLabel(shortcuts_cf.content_frame, text=_t("sh_ai_lbl"))
+        lbl_sh_ai = ctk.CTkLabel(
+            shortcuts_cf.content_frame, 
+            text=_t("sh_ai_lbl"),
+            text_color="#E2E8F0"
+        )
         lbl_sh_ai.pack(anchor="w", padx=10, pady=(5, 0))
-        self.sh_ai_entry = ctk.CTkEntry(shortcuts_cf.content_frame, placeholder_text=_t("sh_ai_placeholder"), width=250)
+        self.sh_ai_entry = ctk.CTkEntry(
+            shortcuts_cf.content_frame, 
+            placeholder_text=_t("sh_ai_placeholder"), 
+            width=250,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.sh_ai_entry.insert(0, self.config.get("shortcut_ai", "<Super><Shift>y"))
         self.sh_ai_entry.pack(anchor="w", padx=10, pady=5)
-
-        lbl_sh_ai_prompt = ctk.CTkLabel(shortcuts_cf.content_frame, text=_t("sh_ai_prompt_lbl"))
+ 
+        lbl_sh_ai_prompt = ctk.CTkLabel(
+            shortcuts_cf.content_frame, 
+            text=_t("sh_ai_prompt_lbl"),
+            text_color="#E2E8F0"
+        )
         lbl_sh_ai_prompt.pack(anchor="w", padx=10, pady=(5, 0))
-        self.sh_ai_prompt_entry = ctk.CTkEntry(shortcuts_cf.content_frame, placeholder_text=_t("sh_ai_prompt_placeholder"), width=250)
+        self.sh_ai_prompt_entry = ctk.CTkEntry(
+            shortcuts_cf.content_frame, 
+            placeholder_text=_t("sh_ai_prompt_placeholder"), 
+            width=250,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.sh_ai_prompt_entry.insert(0, self.config.get("shortcut_ai_prompt", "<Super><Control>y"))
         self.sh_ai_prompt_entry.pack(anchor="w", padx=10, pady=(5, 15))
-
         self.add_save_button(scroll_frame)
 
     def setup_vocab_tab(self):
         tab = self.tabview.tab(_t("tab_vocab"))
+        tab.configure(fg_color="#090D16")
         
         # Upper area: Add new replacement
         add_frame = ctk.CTkFrame(tab, fg_color="transparent")
         add_frame.pack(fill="x", padx=10, pady=(15, 10))
         
-        self.spoken_entry = ctk.CTkEntry(add_frame, placeholder_text=_t("vocab_spoken_placeholder"), width=220)
+        self.spoken_entry = ctk.CTkEntry(
+            add_frame, 
+            placeholder_text=_t("vocab_spoken_placeholder"), 
+            width=220,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.spoken_entry.pack(side="left", padx=5)
         
-        lbl_arrow = ctk.CTkLabel(add_frame, text="➔")
+        lbl_arrow = ctk.CTkLabel(add_frame, text="➔", text_color="#E2E8F0")
         lbl_arrow.pack(side="left", padx=5)
         
-        self.written_entry = ctk.CTkEntry(add_frame, placeholder_text=_t("vocab_written_placeholder"), width=220)
+        self.written_entry = ctk.CTkEntry(
+            add_frame, 
+            placeholder_text=_t("vocab_written_placeholder"), 
+            width=220,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.written_entry.pack(side="left", padx=5)
         
-        btn_add = ctk.CTkButton(add_frame, text=_t("vocab_btn_add"), width=120, command=self.add_vocab_item)
+        btn_add = ctk.CTkButton(
+            add_frame, 
+            text=_t("vocab_btn_add"), 
+            width=120,
+            height=34,
+            corner_radius=8,
+            fg_color="#6366F1",
+            hover_color="#4F46E5",
+            text_color="#FFFFFF",
+            command=self.add_vocab_item,
+            font=ctk.CTkFont(weight="bold")
+        )
         btn_add.pack(side="left", padx=5)
         
         # Search field
         search_frame = ctk.CTkFrame(tab, fg_color="transparent")
         search_frame.pack(fill="x", padx=10, pady=(5, 5))
         
-        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text=_t("vocab_search_placeholder"), width=460)
+        self.search_entry = ctk.CTkEntry(
+            search_frame, 
+            placeholder_text=_t("vocab_search_placeholder"), 
+            width=460,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0",
+            placeholder_text_color="#64748B"
+        )
         self.search_entry.pack(side="left", padx=5)
         self.search_entry.bind("<KeyRelease>", lambda event: self.filter_vocab_list())
         
         # Lower area: Vocabulary mapping list
-        self.vocab_scroll = ctk.CTkScrollableFrame(tab, width=680, height=400)
+        self.vocab_scroll = ctk.CTkScrollableFrame(tab, width=680, height=400, fg_color="transparent")
         self.vocab_scroll.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.refresh_vocab_list()
@@ -551,23 +865,27 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             row_frame = ctk.CTkFrame(self.vocab_scroll, fg_color="transparent")
             row_frame.pack(fill="x", pady=2, padx=5)
             
-            lbl_key = ctk.CTkLabel(row_frame, text=k, width=250, anchor="w", font=ctk.CTkFont(size=13))
+            lbl_key = ctk.CTkLabel(row_frame, text=k, width=250, anchor="w", text_color="#E2E8F0", font=ctk.CTkFont(size=13))
             lbl_key.pack(side="left", padx=5)
             
-            lbl_arrow = ctk.CTkLabel(row_frame, text="➔", width=30)
+            lbl_arrow = ctk.CTkLabel(row_frame, text="➔", width=30, text_color="#94A3B8")
             lbl_arrow.pack(side="left", padx=5)
             
-            lbl_val = ctk.CTkLabel(row_frame, text=v, width=250, anchor="w", font=ctk.CTkFont(size=13, weight="bold"))
+            lbl_val = ctk.CTkLabel(row_frame, text=v, width=250, anchor="w", text_color="#E2E8F0", font=ctk.CTkFont(size=13, weight="bold"))
             lbl_val.pack(side="left", padx=5)
             
             # Delete button (using lambda to capture correct key)
             btn_del = ctk.CTkButton(
                 row_frame, 
                 text=_t("vocab_btn_delete"), 
-                fg_color="#cf4242", 
-                hover_color="#b83232", 
-                width=60, 
-                command=lambda k_val=k: self.delete_vocab_item(k_val)
+                fg_color="#EF4444", 
+                hover_color="#DC2626", 
+                text_color="#FFFFFF",
+                width=65, 
+                height=28,
+                corner_radius=6,
+                command=lambda k_val=k: self.delete_vocab_item(k_val),
+                font=ctk.CTkFont(size=11, weight="bold")
             )
             btn_del.pack(side="right", padx=5)
             
@@ -583,6 +901,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
 
     def setup_prompts_tab(self):
         tab = self.tabview.tab(_t("tab_prompts"))
+        tab.configure(fg_color="#090D16")
         
         # Scrollable container for Prompts to ensure responsiveness
         scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
@@ -591,6 +910,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         lbl_info = ctk.CTkLabel(
             scroll_frame, 
             text=_t("prompts_desc"),
+            text_color="#94A3B8",
             font=ctk.CTkFont(size=13, slant="italic")
         )
         lbl_info.pack(anchor="w", padx=15, pady=(15, 10))
@@ -599,11 +919,20 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         lbl_ai = ctk.CTkLabel(
             scroll_frame, 
             text=_t("prompt_ai_lbl"), 
+            text_color="#E2E8F0",
             font=ctk.CTkFont(size=14, weight="bold")
         )
         lbl_ai.pack(anchor="w", padx=15, pady=(10, 2))
         
-        self.prompt_ai_text = ctk.CTkTextbox(scroll_frame, height=160)
+        self.prompt_ai_text = ctk.CTkTextbox(
+            scroll_frame, 
+            height=160,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0"
+        )
         self.prompt_ai_text.pack(fill="x", expand=True, padx=15, pady=(0, 10))
         
         # Load existing or default
@@ -619,11 +948,20 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         lbl_ai_prompt = ctk.CTkLabel(
             scroll_frame, 
             text=_t("prompt_ai_prompt_lbl"), 
+            text_color="#E2E8F0",
             font=ctk.CTkFont(size=14, weight="bold")
         )
         lbl_ai_prompt.pack(anchor="w", padx=15, pady=(10, 2))
         
-        self.prompt_ai_prompt_text = ctk.CTkTextbox(scroll_frame, height=160)
+        self.prompt_ai_prompt_text = ctk.CTkTextbox(
+            scroll_frame, 
+            height=160,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            text_color="#E2E8F0"
+        )
         self.prompt_ai_prompt_text.pack(fill="x", expand=True, padx=15, pady=(0, 15))
         
         default_prompt_ai_prompt = (
@@ -633,6 +971,8 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             "Output ONLY the final prompt. No conversational filler or markdown code blocks."
         )
         self.prompt_ai_prompt_text.insert("1.0", self.config.get("prompt_ai_prompt", default_prompt_ai_prompt))
+        
+        self.add_save_button(scroll_frame)
 
     def add_vocab_item(self):
         spoken = self.spoken_entry.get().strip().lower()
@@ -777,16 +1117,26 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         dialog.geometry("350x120")
         dialog.transient(self) # Keep on top of main window
         dialog.resizable(False, False)
+        dialog.configure(fg_color="#090D16")
         
         # Center dialog relative to main window
         x = self.winfo_x() + (self.winfo_width() // 2) - 175
         y = self.winfo_y() + (self.winfo_height() // 2) - 60
         dialog.geometry(f"+{x}+{y}")
         
-        lbl = ctk.CTkLabel(dialog, text=message, wraplength=300, font=ctk.CTkFont(size=12))
+        lbl = ctk.CTkLabel(dialog, text=message, wraplength=300, text_color="#E2E8F0", font=ctk.CTkFont(size=12))
         lbl.pack(pady=20)
         
-        btn = ctk.CTkButton(dialog, text="OK", width=80, command=dialog.destroy)
+        btn = ctk.CTkButton(
+            dialog, 
+            text="OK", 
+            width=80, 
+            corner_radius=8,
+            fg_color="#6366F1",
+            hover_color="#4F46E5",
+            text_color="#FFFFFF",
+            command=dialog.destroy
+        )
         btn.pack(pady=(0, 10))
 
 if __name__ == "__main__":
