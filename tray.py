@@ -4,6 +4,7 @@ import subprocess
 import time
 import threading
 from PIL import Image, ImageDraw
+from i18n import _t
 
 # Fallback check for pystray and pillow
 try:
@@ -54,15 +55,15 @@ def trigger_dictation(mode):
 def on_menu_clicked(icon, item):
     """Callback for menu item clicks."""
     name = str(item)
-    if name == "Indstillinger (Settings)...":
+    if name == _t("tray_settings"):
         launch_settings()
-    elif name == "Start Diktat":
+    elif name == _t("tray_direct"):
         trigger_dictation("direct")
-    elif name == "Start AI Diktat (Grammatik)":
+    elif name == _t("tray_ai"):
         trigger_dictation("ai")
-    elif name == "Start AI Coding Prompt":
+    elif name == _t("tray_prompt"):
         trigger_dictation("ai_prompt")
-    elif name == "Afslut (Exit)":
+    elif name == _t("tray_exit"):
         icon.stop()
 
 def monitor_recording_state(icon):
@@ -95,10 +96,10 @@ def monitor_recording_state(icon):
             is_recording = lock_exists
             if is_recording:
                 icon.icon = active_icon
-                icon.title = "Speech2AI2Text - Optager..."
+                icon.title = f"Speech2AI - {_t('state_recording')}"
             else:
                 icon.icon = idle_icon
-                icon.title = "Speech2AI2Text"
+                icon.title = "Speech2AI"
                 
         time.sleep(0.1)
 
@@ -113,21 +114,21 @@ def run_tray():
     
     # Construct menu
     menu = pystray.Menu(
-        pystray.MenuItem("Speech2AI2Text Linux", lambda: None, enabled=False),
+        pystray.MenuItem("Speech2AI", lambda: None, enabled=False),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Start Diktat", on_menu_clicked),
-        pystray.MenuItem("Start AI Diktat (Grammatik)", on_menu_clicked),
-        pystray.MenuItem("Start AI Coding Prompt", on_menu_clicked),
+        pystray.MenuItem(_t("tray_direct"), on_menu_clicked),
+        pystray.MenuItem(_t("tray_ai"), on_menu_clicked),
+        pystray.MenuItem(_t("tray_prompt"), on_menu_clicked),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Indstillinger (Settings)...", on_menu_clicked, default=True),
+        pystray.MenuItem(_t("tray_settings"), on_menu_clicked, default=True),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem("Afslut (Exit)", on_menu_clicked)
+        pystray.MenuItem(_t("tray_exit"), on_menu_clicked)
     )
     
     icon = pystray.Icon(
-        "speech2ai2text", 
+        "speech2ai", 
         icon=initial_icon, 
-        title="Speech2AI2Text", 
+        title="Speech2AI", 
         menu=menu
     )
     

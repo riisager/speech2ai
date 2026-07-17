@@ -11,6 +11,7 @@ from audio_capture import get_pressed_keys, AudioRecorder
 from dictionary import CustomDictionary
 from rewrite import RewriteEngine
 from output import ClipboardPaster
+from i18n import _t
 
 # Resolve files relative to this script's directory for portability
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -52,7 +53,7 @@ class RecordingOverlay(ctk.CTk):
         # App state
         # "recording", "processing", "success", "error"
         self.app_state = "recording"
-        self.status_text = "Lytter..."
+        self.status_text = _t("state_recording")
         
         # Visualizer animation states
         self.num_bars = 9
@@ -104,13 +105,13 @@ class RecordingOverlay(ctk.CTk):
 
         # 3. Mode Badge (DIRECT, AI or AI_PROMPT)
         if self.mode == "DIRECT":
-            display_mode = "DIKTAT"
+            display_mode = _t("badge_direct")
             badge_color = ACCENT_BLUE
         elif self.mode == "AI":
-            display_mode = "AI RET"
+            display_mode = _t("badge_ai")
             badge_color = "#8e44ad"
         else:
-            display_mode = "AI PROMPT"
+            display_mode = _t("badge_prompt")
             badge_color = "#e67e22" # Premium orange/gold
             
         self.badge_frame = ctk.CTkFrame(
@@ -291,10 +292,10 @@ def start_overlay_pipeline(mode="direct", config=None):
             )
             
             # Transition to processing state
-            overlay.set_state("processing", "Behandler...")
+            overlay.set_state("processing", _t("state_processing"))
             
             if not audio_file or not os.path.exists(audio_file):
-                overlay.set_state("error", "Afbrudt.")
+                overlay.set_state("error", _t("state_canceled"))
                 time.sleep(1.0)
                 overlay.after(0, overlay.destroy)
                 return
@@ -314,7 +315,7 @@ def start_overlay_pipeline(mode="direct", config=None):
                 raise ValueError(f"Ukendt motor: {engine}")
                 
             if not raw_text.strip():
-                overlay.set_state("error", "Intet hørt.")
+                overlay.set_state("error", _t("state_nothing_heard"))
                 time.sleep(1.2)
                 overlay.after(0, overlay.destroy)
                 return
@@ -325,16 +326,16 @@ def start_overlay_pipeline(mode="direct", config=None):
             
             # 4. Rewrite (AI mode)
             if mode == "ai":
-                overlay.set_state("processing", "Omskriver...")
+                overlay.set_state("processing", _t("state_rewriting"))
                 rewriter = RewriteEngine(config)
                 clean_text = rewriter.process(clean_text, style="clean_transcription")
             elif mode == "ai_prompt":
-                overlay.set_state("processing", "Omskriver...")
+                overlay.set_state("processing", _t("state_rewriting"))
                 rewriter = RewriteEngine(config)
                 clean_text = rewriter.process(clean_text, style="cursor_prompt")
                 
             # 5. Paste & Success State
-            overlay.set_state("success", "Indsætter...")
+            overlay.set_state("success", _t("state_inserting"))
             paster = ClipboardPaster()
             paster.paste(clean_text)
             
@@ -343,7 +344,7 @@ def start_overlay_pipeline(mode="direct", config=None):
         except Exception as e:
             error_str = str(e)
             print(f"Error in overlay pipeline: {error_str}", file=sys.stderr)
-            overlay.set_state("error", "Fejl!")
+            overlay.set_state("error", _t("state_error"))
             time.sleep(2.0)
         finally:
             # Active lock file cleanup

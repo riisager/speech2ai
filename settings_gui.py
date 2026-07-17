@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+from i18n import _t
 
 # Fallback check for customtkinter dependency
 try:
@@ -65,7 +66,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        self.title("Speech2AI2Text Linux - Indstillinger & Ordbog")
+        self.title(_t("window_title"))
         self.geometry("800x700")
         self.minsize(700, 600)
         self.resizable(True, True)
@@ -123,11 +124,11 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.tabview = ctk.CTkTabview(self)
         self.tabview.pack(fill="both", expand=True, padx=15, pady=15)
         
-        self.tabview.add("Sprogmotor & Skyen")
-        self.tabview.add("Lokale Modeller")
-        self.tabview.add("System & Genveje")
-        self.tabview.add("Ordbog (Vocabulary)")
-        self.tabview.add("AI Prompter (Prompts)")
+        self.tabview.add(_t("tab_cloud"))
+        self.tabview.add(_t("tab_local"))
+        self.tabview.add(_t("tab_system"))
+        self.tabview.add(_t("tab_vocab"))
+        self.tabview.add(_t("tab_prompts"))
         
         self.setup_engines_tab()
         self.setup_local_models_tab()
@@ -138,7 +139,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
     def add_save_button(self, scroll_frame):
         btn_save = ctk.CTkButton(
             scroll_frame, 
-            text="Gem Indstillinger", 
+            text=_t("btn_save"), 
             command=self.save_settings, 
             height=40, 
             font=ctk.CTkFont(weight="bold")
@@ -146,13 +147,13 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         btn_save.pack(fill="x", pady=(20, 10))
 
     def setup_engines_tab(self):
-        tab = self.tabview.tab("Sprogmotor & Skyen")
+        tab = self.tabview.tab(_t("tab_cloud"))
         
         scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Engine selection
-        lbl_engine = ctk.CTkLabel(scroll_frame, text="Speech-to-Text Engine", font=ctk.CTkFont(size=14, weight="bold"))
+        lbl_engine = ctk.CTkLabel(scroll_frame, text=_t("speech_engine_lbl"), font=ctk.CTkFont(size=14, weight="bold"))
         lbl_engine.pack(anchor="w", pady=(10, 5))
         
         self.engine_var = ctk.StringVar(value=self.config.get("selected_engine", "gemini_cloud"))
@@ -166,97 +167,97 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         
         # Gemini API Settings (Collapsible)
         is_gemini = self.engine_var.get() == "gemini_cloud"
-        gemini_cf = CollapsibleFrame(scroll_frame, title="Gemini Cloud Indstillinger", expanded=is_gemini)
+        gemini_cf = CollapsibleFrame(scroll_frame, title=_t("gemini_title"), expanded=is_gemini)
         gemini_cf.pack(fill="x", pady=10)
         
-        self.gemini_key_entry = ctk.CTkEntry(gemini_cf.content_frame, placeholder_text="Gemini API Nøgle", width=500, show="*")
+        self.gemini_key_entry = ctk.CTkEntry(gemini_cf.content_frame, placeholder_text=_t("gemini_key_placeholder"), width=500, show="*")
         self.gemini_key_entry.insert(0, self.config.get("gemini_api_key", ""))
         self.gemini_key_entry.pack(anchor="w", fill="x", padx=10, pady=5)
         
-        self.gemini_model_entry = ctk.CTkEntry(gemini_cf.content_frame, placeholder_text="Gemini Model (f.eks. gemini-3.5-flash)", width=250)
+        self.gemini_model_entry = ctk.CTkEntry(gemini_cf.content_frame, placeholder_text=_t("gemini_model_placeholder"), width=250)
         self.gemini_model_entry.insert(0, self.config.get("gemini_model", "gemini-3.5-flash"))
         self.gemini_model_entry.pack(anchor="w", padx=10, pady=(5, 10))
 
         # Groq API Settings (Collapsible)
         is_groq = self.engine_var.get() == "groq_cloud"
-        groq_cf = CollapsibleFrame(scroll_frame, title="Groq Cloud Indstillinger", expanded=is_groq)
+        groq_cf = CollapsibleFrame(scroll_frame, title=_t("groq_title"), expanded=is_groq)
         groq_cf.pack(fill="x", pady=10)
         
-        self.groq_key_entry = ctk.CTkEntry(groq_cf.content_frame, placeholder_text="Groq API Nøgle", width=500, show="*")
+        self.groq_key_entry = ctk.CTkEntry(groq_cf.content_frame, placeholder_text=_t("groq_key_placeholder"), width=500, show="*")
         self.groq_key_entry.insert(0, self.config.get("groq_api_key", ""))
         self.groq_key_entry.pack(anchor="w", fill="x", padx=10, pady=5)
 
-        self.groq_model_entry = ctk.CTkEntry(groq_cf.content_frame, placeholder_text="Groq Model (f.eks. llama-3.1-8b-instant)", width=250)
+        self.groq_model_entry = ctk.CTkEntry(groq_cf.content_frame, placeholder_text=_t("groq_model_placeholder"), width=250)
         self.groq_model_entry.insert(0, self.config.get("groq_model", "llama-3.1-8b-instant"))
         self.groq_model_entry.pack(anchor="w", padx=10, pady=(5, 10))
 
         self.add_save_button(scroll_frame)
 
     def setup_local_models_tab(self):
-        tab = self.tabview.tab("Lokale Modeller")
+        tab = self.tabview.tab(_t("tab_local"))
         
         scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Ollama Configuration (Collapsible)
         is_ollama_active = self.config.get("rewrite_locally", False)
-        ollama_cf = CollapsibleFrame(scroll_frame, title="Ollama (Lokal AI Omskrivning)", expanded=is_ollama_active)
+        ollama_cf = CollapsibleFrame(scroll_frame, title=_t("ollama_title"), expanded=is_ollama_active)
         ollama_cf.pack(fill="x", pady=10)
         
         self.rewrite_local_var = ctk.BooleanVar(value=is_ollama_active)
         chk_rewrite_local = ctk.CTkSwitch(
             ollama_cf.content_frame, 
-            text="Omskriv lokalt via Ollama (kræver kørende Ollama)",
+            text=_t("ollama_switch"),
             variable=self.rewrite_local_var
         )
         chk_rewrite_local.pack(anchor="w", padx=10, pady=10)
         
-        self.ollama_model_entry = ctk.CTkEntry(ollama_cf.content_frame, placeholder_text="Ollama Model (f.eks. llama3)", width=250)
+        self.ollama_model_entry = ctk.CTkEntry(ollama_cf.content_frame, placeholder_text=_t("ollama_model_placeholder"), width=250)
         self.ollama_model_entry.insert(0, self.config.get("local_llm_model", "llama3"))
         self.ollama_model_entry.pack(anchor="w", padx=10, pady=5)
 
-        self.ollama_url_entry = ctk.CTkEntry(ollama_cf.content_frame, placeholder_text="Ollama API URL (f.eks. http://localhost:11434)", width=500)
+        self.ollama_url_entry = ctk.CTkEntry(ollama_cf.content_frame, placeholder_text=_t("ollama_url_placeholder"), width=500)
         self.ollama_url_entry.insert(0, self.config.get("ollama_api_url", "http://localhost:11434"))
         self.ollama_url_entry.pack(anchor="w", fill="x", padx=10, pady=(5, 10))
 
         # Local Whisper Settings (Collapsible)
         is_whisper = self.engine_var.get() == "local_whisper"
-        whisper_cf = CollapsibleFrame(scroll_frame, title="Lokal Whisper (whisper.cpp)", expanded=is_whisper)
+        whisper_cf = CollapsibleFrame(scroll_frame, title=_t("whisper_title"), expanded=is_whisper)
         whisper_cf.pack(fill="x", pady=10)
         
-        self.whisper_path_entry = ctk.CTkEntry(whisper_cf.content_frame, placeholder_text="Sti til whisper.cpp main executable", width=500)
+        self.whisper_path_entry = ctk.CTkEntry(whisper_cf.content_frame, placeholder_text=_t("whisper_path_placeholder"), width=500)
         self.whisper_path_entry.insert(0, self.config.get("local_whisper_path", "/usr/bin/whisper"))
         self.whisper_path_entry.pack(anchor="w", fill="x", padx=10, pady=5)
         
-        self.whisper_model_entry = ctk.CTkEntry(whisper_cf.content_frame, placeholder_text="Sti til Whisper ggml model (.bin)", width=500)
+        self.whisper_model_entry = ctk.CTkEntry(whisper_cf.content_frame, placeholder_text=_t("whisper_model_placeholder"), width=500)
         self.whisper_model_entry.insert(0, self.config.get("local_model_path", ""))
         self.whisper_model_entry.pack(anchor="w", fill="x", padx=10, pady=(5, 10))
 
         self.add_save_button(scroll_frame)
 
     def setup_system_shortcuts_tab(self):
-        tab = self.tabview.tab("System & Genveje")
+        tab = self.tabview.tab(_t("tab_system"))
         
         scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Feedback & notifications
-        lbl_feedback = ctk.CTkLabel(scroll_frame, text="Feedback & Notificeringer", font=ctk.CTkFont(size=14, weight="bold"))
+        lbl_feedback = ctk.CTkLabel(scroll_frame, text=_t("feedback_title"), font=ctk.CTkFont(size=14, weight="bold"))
         lbl_feedback.pack(anchor="w", pady=(10, 5))
         
         self.notify_var = ctk.BooleanVar(value=self.config.get("enable_notifications", True))
-        chk_notify = ctk.CTkSwitch(scroll_frame, text="Vis systemnotifikationer (notify-send)", variable=self.notify_var)
+        chk_notify = ctk.CTkSwitch(scroll_frame, text=_t("chk_notify"), variable=self.notify_var)
         chk_notify.pack(anchor="w", pady=5)
         
         self.beep_var = ctk.BooleanVar(value=self.config.get("enable_beeps", True))
-        chk_beep = ctk.CTkSwitch(scroll_frame, text="Afspil lydtoner (beeps) ved optagestart/slut", variable=self.beep_var)
+        chk_beep = ctk.CTkSwitch(scroll_frame, text=_t("chk_beep"), variable=self.beep_var)
         chk_beep.pack(anchor="w", pady=5)
         
         self.overlay_var = ctk.BooleanVar(value=self.config.get("enable_gui_overlay", True))
-        chk_overlay = ctk.CTkSwitch(scroll_frame, text="Vis flydende kapsel-overlay (iOS-stil)", variable=self.overlay_var)
+        chk_overlay = ctk.CTkSwitch(scroll_frame, text=_t("chk_overlay"), variable=self.overlay_var)
         chk_overlay.pack(anchor="w", pady=5)
         
-        lbl_vol = ctk.CTkLabel(scroll_frame, text="Lydstyrke for beeps:")
+        lbl_vol = ctk.CTkLabel(scroll_frame, text=_t("beep_vol_lbl"))
         lbl_vol.pack(anchor="w", pady=(5, 0))
         
         self.vol_slider = ctk.CTkSlider(scroll_frame, from_=0.0, to=1.0, width=200)
@@ -264,72 +265,84 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.vol_slider.pack(anchor="w", pady=(0, 20))
 
         # Advanced settings
-        lbl_advanced = ctk.CTkLabel(scroll_frame, text="Avancerede Indstillinger", font=ctk.CTkFont(size=14, weight="bold"))
+        lbl_advanced = ctk.CTkLabel(scroll_frame, text=_t("advanced_title"), font=ctk.CTkFont(size=14, weight="bold"))
         lbl_advanced.pack(anchor="w", pady=(10, 5))
         
-        lbl_max_time = ctk.CTkLabel(scroll_frame, text="Maksimal optagelsestid (sekunder):")
+        lbl_max_time = ctk.CTkLabel(scroll_frame, text=_t("max_time_lbl"))
         lbl_max_time.pack(anchor="w", pady=(5, 0))
-        self.max_time_entry = ctk.CTkEntry(scroll_frame, placeholder_text="Maksimal optagelsestid (sekunder, f.eks. 30)", width=250)
+        self.max_time_entry = ctk.CTkEntry(scroll_frame, placeholder_text=_t("max_time_placeholder"), width=250)
         self.max_time_entry.insert(0, str(self.config.get("max_recording_time", 30)))
         self.max_time_entry.pack(anchor="w", pady=(5, 20))
 
+        # Language Settings
+        lbl_lang = ctk.CTkLabel(scroll_frame, text=_t("lang_lbl"), font=ctk.CTkFont(size=12, weight="bold"))
+        lbl_lang.pack(anchor="w", pady=(5, 0))
+        self.lang_var = ctk.StringVar(value=self.config.get("language", "da"))
+        self.lang_dropdown = ctk.CTkOptionMenu(
+            scroll_frame, 
+            values=["da", "en", "es"],
+            variable=self.lang_var,
+            width=150
+        )
+        self.lang_dropdown.pack(anchor="w", pady=(5, 20))
+
         # Tastaturgenveje (Global Keybindings in Cinnamon) (Collapsible)
-        shortcuts_cf = CollapsibleFrame(scroll_frame, title="Tastaturgenveje (Linux Mint Genveje)", expanded=False)
+        shortcuts_cf = CollapsibleFrame(scroll_frame, title=_t("shortcuts_title"), expanded=False)
         shortcuts_cf.pack(fill="x", pady=10)
         
         lbl_sh_desc = ctk.CTkLabel(
             shortcuts_cf.content_frame, 
-            text="Genveje for at starte diktaten automatisk i Linux Mint.\nEksempler: <Super>y, <Super><Shift>y, <Super><Control>y", 
+            text=_t("shortcuts_desc"), 
             text_color="gray",
             font=ctk.CTkFont(size=11),
             justify="left"
         )
         lbl_sh_desc.pack(anchor="w", padx=10, pady=5)
         
-        lbl_sh_direct = ctk.CTkLabel(shortcuts_cf.content_frame, text="Almindelig Diktat genvej (Transkriberer ordret):")
+        lbl_sh_direct = ctk.CTkLabel(shortcuts_cf.content_frame, text=_t("sh_direct_lbl"))
         lbl_sh_direct.pack(anchor="w", padx=10, pady=(5, 0))
-        self.sh_direct_entry = ctk.CTkEntry(shortcuts_cf.content_frame, placeholder_text="Standard: <Super>y", width=250)
+        self.sh_direct_entry = ctk.CTkEntry(shortcuts_cf.content_frame, placeholder_text=_t("sh_direct_placeholder"), width=250)
         self.sh_direct_entry.insert(0, self.config.get("shortcut_direct", "<Super>y"))
         self.sh_direct_entry.pack(anchor="w", padx=10, pady=5)
         
-        lbl_sh_ai = ctk.CTkLabel(shortcuts_cf.content_frame, text="AI Diktat genvej (Retter stavning/grammatik):")
+        lbl_sh_ai = ctk.CTkLabel(shortcuts_cf.content_frame, text=_t("sh_ai_lbl"))
         lbl_sh_ai.pack(anchor="w", padx=10, pady=(5, 0))
-        self.sh_ai_entry = ctk.CTkEntry(shortcuts_cf.content_frame, placeholder_text="Standard: <Super><Shift>y", width=250)
+        self.sh_ai_entry = ctk.CTkEntry(shortcuts_cf.content_frame, placeholder_text=_t("sh_ai_placeholder"), width=250)
         self.sh_ai_entry.insert(0, self.config.get("shortcut_ai", "<Super><Shift>y"))
         self.sh_ai_entry.pack(anchor="w", padx=10, pady=5)
 
-        lbl_sh_ai_prompt = ctk.CTkLabel(shortcuts_cf.content_frame, text="AI Prompt genvej (Omskriver til AI coding prompt):")
+        lbl_sh_ai_prompt = ctk.CTkLabel(shortcuts_cf.content_frame, text=_t("sh_ai_prompt_lbl"))
         lbl_sh_ai_prompt.pack(anchor="w", padx=10, pady=(5, 0))
-        self.sh_ai_prompt_entry = ctk.CTkEntry(shortcuts_cf.content_frame, placeholder_text="Standard: <Super><Control>y", width=250)
+        self.sh_ai_prompt_entry = ctk.CTkEntry(shortcuts_cf.content_frame, placeholder_text=_t("sh_ai_prompt_placeholder"), width=250)
         self.sh_ai_prompt_entry.insert(0, self.config.get("shortcut_ai_prompt", "<Super><Control>y"))
         self.sh_ai_prompt_entry.pack(anchor="w", padx=10, pady=(5, 15))
 
         self.add_save_button(scroll_frame)
 
     def setup_vocab_tab(self):
-        tab = self.tabview.tab("Ordbog (Vocabulary)")
+        tab = self.tabview.tab(_t("tab_vocab"))
         
         # Upper area: Add new replacement
         add_frame = ctk.CTkFrame(tab, fg_color="transparent")
         add_frame.pack(fill="x", padx=10, pady=(15, 10))
         
-        self.spoken_entry = ctk.CTkEntry(add_frame, placeholder_text="Udtalt ord (f.eks. æpi)", width=220)
+        self.spoken_entry = ctk.CTkEntry(add_frame, placeholder_text=_t("vocab_spoken_placeholder"), width=220)
         self.spoken_entry.pack(side="left", padx=5)
         
         lbl_arrow = ctk.CTkLabel(add_frame, text="➔")
         lbl_arrow.pack(side="left", padx=5)
         
-        self.written_entry = ctk.CTkEntry(add_frame, placeholder_text="Skrevet ord (f.eks. API)", width=220)
+        self.written_entry = ctk.CTkEntry(add_frame, placeholder_text=_t("vocab_written_placeholder"), width=220)
         self.written_entry.pack(side="left", padx=5)
         
-        btn_add = ctk.CTkButton(add_frame, text="Tilføj ord", width=120, command=self.add_vocab_item)
+        btn_add = ctk.CTkButton(add_frame, text=_t("vocab_btn_add"), width=120, command=self.add_vocab_item)
         btn_add.pack(side="left", padx=5)
         
         # Search field
         search_frame = ctk.CTkFrame(tab, fg_color="transparent")
         search_frame.pack(fill="x", padx=10, pady=(5, 5))
         
-        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text="Søg i ordbog...", width=460)
+        self.search_entry = ctk.CTkEntry(search_frame, placeholder_text=_t("vocab_search_placeholder"), width=460)
         self.search_entry.pack(side="left", padx=5)
         self.search_entry.bind("<KeyRelease>", lambda event: self.filter_vocab_list())
         
@@ -371,7 +384,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             # Delete button (using lambda to capture correct key)
             btn_del = ctk.CTkButton(
                 row_frame, 
-                text="Slet", 
+                text=_t("vocab_btn_delete"), 
                 fg_color="#cf4242", 
                 hover_color="#b83232", 
                 width=60, 
@@ -382,14 +395,15 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             row += 1
             
         if row == 0:
-            lbl_empty = ctk.CTkLabel(self.vocab_scroll, text="Ingen ordbogsindgange fundet.", text_color="gray")
+            lbl_empty = ctk.CTkLabel(self.vocab_scroll, text=_t("vocab_empty"), text_color="gray")
             lbl_empty.pack(pady=20)
 
     def filter_vocab_list(self):
         query = self.search_entry.get()
         self.refresh_vocab_list(filter_text=query)
+
     def setup_prompts_tab(self):
-        tab = self.tabview.tab("AI Prompter (Prompts)")
+        tab = self.tabview.tab(_t("tab_prompts"))
         
         # Scrollable container for Prompts to ensure responsiveness
         scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
@@ -397,7 +411,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         
         lbl_info = ctk.CTkLabel(
             scroll_frame, 
-            text="Her kan du tilpasse de instruktioner (prompter), der sendes til AI'en i de to AI-tilstande.",
+            text=_t("prompts_desc"),
             font=ctk.CTkFont(size=13, slant="italic")
         )
         lbl_info.pack(anchor="w", padx=15, pady=(15, 10))
@@ -405,7 +419,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         # AI Diktat Prompt
         lbl_ai = ctk.CTkLabel(
             scroll_frame, 
-            text="AI Diktat (Grammatik-retning) - Prompt:", 
+            text=_t("prompt_ai_lbl"), 
             font=ctk.CTkFont(size=14, weight="bold")
         )
         lbl_ai.pack(anchor="w", padx=15, pady=(10, 2))
@@ -425,7 +439,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         # AI Coding Prompt
         lbl_ai_prompt = ctk.CTkLabel(
             scroll_frame, 
-            text="AI Coding Prompt (Agent-kodningsprompt) - Prompt:", 
+            text=_t("prompt_ai_prompt_lbl"), 
             font=ctk.CTkFont(size=14, weight="bold")
         )
         lbl_ai_prompt.pack(anchor="w", padx=15, pady=(10, 2))
@@ -440,13 +454,14 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             "Output ONLY the final prompt. No conversational filler or markdown code blocks."
         )
         self.prompt_ai_prompt_text.insert("1.0", self.config.get("prompt_ai_prompt", default_prompt_ai_prompt))
+
     def add_vocab_item(self):
         spoken = self.spoken_entry.get().strip().lower()
         written = self.written_entry.get().strip()
         
         if not spoken or not written:
             # Simple error dialog
-            self.show_status_window("Fejl", "Udfyld venligst begge felter.")
+            self.show_status_window(_t("status_error_dialog"), _t("status_vocab_fill_fields"))
             return
             
         self.vocab[spoken] = written
@@ -455,15 +470,14 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             self.written_entry.delete(0, "end")
             self.search_entry.delete(0, "end")
             self.refresh_vocab_list()
-            self.show_status_window("Succes", f"Tilføjede '{spoken}' ➔ '{written}'")
+            self.show_status_window(_t("status_success"), f"{_t('status_vocab_added')} '{spoken}' ➔ '{written}'")
             
     def delete_vocab_item(self, key):
         if key in self.vocab:
             del self.vocab[key]
             if self.save_json(VOCAB_PATH, self.vocab):
                 self.filter_vocab_list()
-                self.show_status_window("Succes", f"Slettede '{key}' fra ordbogen")
-
+                self.show_status_window(_t("status_success"), f"{_t('status_vocab_deleted')} '{key}'")
     def save_settings(self):
         self.config["selected_engine"] = self.engine_var.get()
         self.config["gemini_api_key"] = self.gemini_key_entry.get().strip()
@@ -477,6 +491,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.config["enable_beeps"] = self.beep_var.get()
         self.config["beep_volume"] = float(round(self.vol_slider.get(), 2))
         self.config["enable_gui_overlay"] = self.overlay_var.get()
+        self.config["language"] = self.lang_var.get()
         
         # Save custom prompts
         self.config["prompt_ai"] = self.prompt_ai_text.get("1.0", "end-1c").strip()
@@ -504,7 +519,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.set_cinnamon_shortcut("ai_prompt", new_shortcut_ai_prompt)
         
         if self.save_json(CONFIG_PATH, self.config):
-            self.show_status_window("Succes", "Indstillingerne er gemt succesfuldt!")
+            self.show_status_window(_t("status_success"), _t("status_saved"))
 
     def get_cinnamon_custom_shortcuts(self):
         import subprocess, re

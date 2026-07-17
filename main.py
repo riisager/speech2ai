@@ -40,6 +40,7 @@ if __name__ == "__main__":
 import json
 import subprocess
 import requests
+from i18n import _t
 
 from audio_capture import AudioRecorder
 from dictionary import CustomDictionary
@@ -100,7 +101,7 @@ def transcribe_gemini(audio_path, config):
     model = config.get("gemini_model", "gemini-1.5-flash")
     
     if not api_key or "YOUR_" in api_key:
-        raise ValueError("Mangler Gemini API nøgle. Indstil den venligst i config.json eller via settings_gui.py.")
+        raise ValueError(_t("missing_key_gemini"))
         
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     
@@ -191,7 +192,7 @@ def run_pipeline(mode="direct"):
         initial_keys = get_pressed_keys()
 
     # Initialize notification feedback
-    send_notification(config, "Speech2AI2Text", "🎤 Lytter... (Hold genvejstast nede)", timeout=1500)
+    send_notification(config, "Speech2AI", _t("notify_listening"), timeout=1500)
     
     # Create active lock file for tray icon status change
     LOCK_FILE = "/tmp/speech2ai2text_active.lock"
@@ -220,11 +221,11 @@ def run_pipeline(mode="direct"):
             pass
             
     if not audio_file or not os.path.exists(audio_file):
-        send_notification(config, "Speech2AI2Text", "❌ Optagelse fejlede eller blev afbrudt.", timeout=1500)
+        send_notification(config, "Speech2AI", _t("notify_failed"), timeout=1500)
         return
         
     # Transition feedback
-    send_notification(config, "Speech2AI2Text", "⚡ Bearbejder lyd...", timeout=2500)
+    send_notification(config, "Speech2AI", _t("notify_processing"), timeout=2500)
     
     # 2. Transkriber
     engine = config.get("selected_engine", "gemini_cloud")
@@ -238,12 +239,12 @@ def run_pipeline(mode="direct"):
         elif engine == "local_whisper":
             raw_text = transcribe_local_whisper(audio_file, config)
         else:
-            raise ValueError(f"Ukendt transkriberingsmotor valgt: {engine}")
+            raise ValueError(f"{_t('unknown_engine')}{engine}")
             
         print(f"Raw transcription: '{raw_text}'")
         
         if not raw_text.strip():
-            send_notification(config, "Speech2AI2Text", "⚠️ Intet tale detekteret.", timeout=1500)
+            send_notification(config, "Speech2AI", _t("notify_no_speech"), timeout=1500)
             return
             
         # 3. Kør igennem den lokale ordbog
@@ -253,12 +254,12 @@ def run_pipeline(mode="direct"):
         
         # 4. Hvis vi er i AI-mode, kør omskriveren
         if mode == "ai":
-            send_notification(config, "Speech2AI2Text", "🤖 Retter tekst med AI...", timeout=2500)
+            send_notification(config, "Speech2AI", _t("notify_rewriting_ai"), timeout=2500)
             rewriter = RewriteEngine(config)
             clean_text = rewriter.process(clean_text, style="clean_transcription")
             print(f"AI proofread text: '{clean_text}'")
         elif mode == "ai_prompt":
-            send_notification(config, "Speech2AI2Text", "🤖 Genererer AI Prompt...", timeout=2500)
+            send_notification(config, "Speech2AI", _t("notify_generating_prompt"), timeout=2500)
             rewriter = RewriteEngine(config)
             clean_text = rewriter.process(clean_text, style="cursor_prompt")
             print(f"Rewritten coding prompt: '{clean_text}'")
@@ -268,12 +269,12 @@ def run_pipeline(mode="direct"):
         paster.paste(clean_text)
         
         # Success feedback
-        send_notification(config, "Speech2AI2Text", "✅ Færdig! Tekst indsat.", timeout=1000)
+        send_notification(config, "Speech2AI", _t("notify_success"), timeout=1000)
         
     except Exception as e:
         error_msg = str(e)
         print(f"Pipeline error: {error_msg}", file=sys.stderr)
-        send_notification(config, "Speech2AI2Text Fejl", error_msg, timeout=4000)
+        send_notification(config, _t("notify_error_title"), error_msg, timeout=4000)
 
     # Wait until the physical shortcut keys are fully released before exiting.
     # This prevents the OS from triggering a new process immediately due to key auto-repeat.
