@@ -56,8 +56,10 @@ class RewriteEngine:
             "Authorization": f"Bearer {self.config.get('groq_api_key')}",
             "Content-Type": "application/json"
         }
+        model = self.config.get("groq_model", "llama-3.1-8b-instant")
+        print(f"Rewriting via Groq using model: {model}")
         payload = {
-            "model": self.config.get("groq_model", "llama-3.1-8b-instant"),
+            "model": model,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": text}
@@ -76,6 +78,7 @@ class RewriteEngine:
 
     def _gemini_rewrite(self, text, system_prompt):
         model = self.config.get("gemini_model", "gemini-1.5-flash")
+        print(f"Rewriting via Gemini using model: {model}")
         api_key = self.config.get("gemini_api_key")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         
@@ -111,8 +114,10 @@ class RewriteEngine:
     def _ollama_rewrite(self, text, system_prompt):
         base_url = self.config.get("ollama_api_url", "http://localhost:11434").rstrip("/")
         url = f"{base_url}/api/generate"
+        model = self.config.get("local_llm_model", "llama3")
+        print(f"Rewriting locally via Ollama using model: {model}")
         payload = {
-            "model": self.config.get("local_llm_model", "llama3"),
+            "model": model,
             "prompt": f"System instruction: {system_prompt}\n\nUser text to rewrite: {text}",
             "stream": False
         }
