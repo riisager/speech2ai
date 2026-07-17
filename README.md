@@ -1,7 +1,5 @@
 # speech2ai - AI-Powered Voice Dictation for Linux (Mint/Cinnamon)
 
-[Dansk version nedenfor](#danish)
-
 **speech2ai** is an open-source, highly optimized voice dictation utility designed for Linux desktop environments (optimized for Linux Mint/Cinnamon and X11). It allows you to dictate text directly into any active input field (browsers, text editors, terminals) using global keyboard shortcuts.
 
 The system supports both direct word-for-word transcription and advanced AI rewrite modes, such as grammar correction and structured prompt generation for AI coding agents (e.g., Cursor or Antigravity).
@@ -54,56 +52,3 @@ You can change these in the settings interface, and the program will automatical
 ## ⚖️ License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
-
----
-
-<a name="danish"></a>
-
-# speech2ai - AI-Powered Voice Dictation for Linux (Mint/Cinnamon)
-
-**speech2ai** er et åbent og yderst optimeret system til stemme-diktering på Linux (specifikt bygget til Linux Mint/Cinnamon og X11-skrivebordsmiljøer). Programmet lader dig diktere tekst direkte ind i ethvert aktivt tekstfelt (webbrowsere, teksteditorer, terminaler) ved hjælp af globale genvejstaster.
-
-Systemet understøtter både direkte ordret transkription og avanceret AI-redigering, herunder automatisk grammatikretning og generering af strukturerede prompter til kodningsagenter (f.eks. Cursor eller Antigravity).
-
----
-
-## ✨ Nøglefunktioner
-
-*   **Lynhurtig indlæsning (<100ms):** Takket være doven indlæsning (lazy-loading) af tunge lydbiblioteker reagerer det visuelle overlay øjeblikkeligt, når du trykker på din genvejstast.
-*   **3 smarte dikteringstilstande:**
-    1.  **Almindelig Diktat:** Transkriberer ordret præcis hvad du siger uden AI-indblanding.
-    2.  **AI Diktat (Grammatik):** Transkriberer din tale og bruger AI til at fjerne stammende ord, fyldord (som *øh, øhm, ah*) og rette grammatik/sætningsstruktur, mens sproget bevares.
-    3.  **AI Prompt (Kodetilstand):** Oversætter dine talte instruktioner til en yderst præcis, struktureret og handlingsorienteret prompt til AI-kodningsværktøjer.
-*   **Visuelt Overlay (iOS-stil):** En flot, flydende kapsel i bunden af skærmen med realtid-lydbølgevisualisering, der viser programmets status.
-*   **Indbygget sproglag (i18n):** Fuld understøttelse af **engelsk**, **dansk** og **spansk**. Standardsproget er engelsk, men kan let ændres direkte i indstillingerne.
-*   **Personlig Ordbog:** Indbygget ordbog til lyd-korrektioner, så svære eller udtalte ord automatisk rettes (f.eks. *æpi* ➔ *API*, *git hub* ➔ *GitHub*).
-*   **Automatisk Mint/Cinnamon integration:** Nem opsætning af globale tastaturgenveje direkte fra programmets grafiske indstillinger, som synkroniseres direkte med Linux Mints `dconf`-system.
-*   **Systembakke (Tray App):** Et diskret mikrofon-ikon ved uret, hvorfra du nemt kan starte optagelser eller åbne indstillingspanelet.
-
----
-
-## 🛠️ Installation
-
-Følg disse enkle trin for at installere **speech2ai**:
-
-1.  Åbn din terminal i projektmappen.
-2.  Kør installationsscriptet:
-    ```bash
-    chmod +x install.sh
-    ./install.sh
-    ```
-    *Installationsscriptet vil undersøge om du mangler nødvendige systempakker (`xclip`, `xdotool`, `portaudio` m.m.), og tilbyde at installere dem automatisk for dig via `apt`.*
-3.  Genstart din computer eller log ud/ind for at aktivere genveje og autostart af tray-ikonet.
-
----
-
-## ⚙️ Opsætning af Tastaturgenveje
-
-Efter installationen kan du søge efter **Speech2AI Indstillinger** i din startmenu for at indtaste din Gemini/Groq API-nøgle og ændre dine genveje.
-
-Programmet understøtter følgende tre genveje som standard:
-*   **Almindelig Diktat:** `Super + Y`
-*   **AI Diktat (Grammatik):** `Super + Shift + Y`
-*   **AI Prompt (Agent-kode):** `Super + Ctrl + Y`
-
-Du kan ændre disse inde i indstillingsvinduet, og programmet vil automatisk registrere dem i Linux Mint.
