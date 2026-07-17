@@ -110,8 +110,13 @@ class ModelInstallProgressWindow(ctk.CTkToplevel):
         if not is_installed:
             self.log(_t("ollama_install_missing"))
             cmd = "pkexec sh -c 'curl -fsSL https://ollama.com/install.sh | sh'"
-            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            process.communicate()
+            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            while True:
+                line = process.stdout.readline()
+                if not line:
+                    break
+                self.log(line.decode("utf-8"))
+            process.wait()
             if process.returncode != 0:
                 self.log(_t("ollama_install_auth_failed"))
                 self.log(_t("ollama_install_failed"))
