@@ -4,6 +4,39 @@
 
 The system supports both direct word-for-word transcription and advanced AI rewrite modes, such as grammar correction and structured prompt generation for AI coding agents (e.g., Cursor or Antigravity).
 
+## 📊 System Flow & Architecture
+
+Below is a flow diagram representing the warm-start socket client-daemon architecture and selection-aware pipeline:
+
+```mermaid
+graph TD
+    A[Bruger trykker genvejstast] --> B(Cinnamon afvikler trigger.py)
+    B --> C{Er daemon aktiv?<br>findes /tmp/speech2ai.sock?}
+    
+    %% Warm Start Flow
+    C -- Ja: Warm Start --> D[Send signal + tilstand til socket]
+    D --> E[trigger.py afsluttes straks <20ms]
+    
+    %% Cold Start Flow
+    C -- Nej: Cold Start --> F[Afvikl main.py direkte]
+    F --> G[Optag lyd, transkriber og indsæt kold]
+    
+    %% Daemon processing
+    D -.-> H[Daemon modtager trigger]
+    H --> I[Hent markeret tekst med Ctrl+C kopi-backup]
+    I --> J[Vis præ-loaded overlay øjeblikkeligt deiconify]
+    J --> K[Optag lyd indtil genvejstast slippes]
+    K --> L[Transkriber audio via Keep-Alive HTTP Session]
+    L --> M{Er der markeret tekst?}
+    
+    M -- Ja --> N[AI omskriver baseret på kontekst + diktat]
+    M -- Nej --> O[AI omskriver / indsætter diktat rent]
+    
+    N --> P[Skriv resultat permanent til clipboard]
+    O --> P
+    P --> Q[Simuler Ctrl+V paste og skjul overlay withdraw]
+```
+
 ---
 
 ## ⚡ Architectural Performance & Speed Optimizations
