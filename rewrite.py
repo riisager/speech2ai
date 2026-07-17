@@ -122,7 +122,7 @@ class RewriteEngine:
             "stream": False
         }
         try:
-            r = requests.post(url, json=payload, timeout=15)
+            r = requests.post(url, json=payload, timeout=60)
             if r.status_code == 200:
                 return r.json().get("response", "").strip()
             else:
