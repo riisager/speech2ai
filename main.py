@@ -96,7 +96,7 @@ def send_notification(config, title, message, timeout=2000):
     except Exception:
         pass
 
-def transcribe_gemini(audio_path, config):
+def transcribe_gemini(audio_path, config, session=None):
     """Transcribes audio using Gemini 1.5/2.0 API via direct HTTPS request."""
     api_key = config.get("gemini_api_key")
     model = config.get("gemini_model", "gemini-1.5-flash")
@@ -125,7 +125,8 @@ def transcribe_gemini(audio_path, config):
     }
     
     headers = {"Content-Type": "application/json"}
-    r = requests.post(url, headers=headers, json=payload, timeout=20)
+    post_func = session.post if session else requests.post
+    r = post_func(url, headers=headers, json=payload, timeout=20)
     
     if r.status_code == 200:
         res = r.json()
@@ -140,7 +141,7 @@ def transcribe_gemini(audio_path, config):
     else:
         raise Exception(f"Gemini API svarede med fejl ({r.status_code}): {r.text}")
 
-def transcribe_groq(audio_path, config):
+def transcribe_groq(audio_path, config, session=None):
     """Transcribes audio using Groq API via requests."""
     api_key = config.get("groq_api_key")
     
@@ -153,7 +154,8 @@ def transcribe_groq(audio_path, config):
     with open(audio_path, "rb") as f:
         files = {"file": (os.path.basename(audio_path), f, "audio/wav")}
         data = {"model": "whisper-large-v3"}
-        r = requests.post(url, headers=headers, files=files, data=data, timeout=20)
+        post_func = session.post if session else requests.post
+        r = post_func(url, headers=headers, files=files, data=data, timeout=20)
         
     if r.status_code == 200:
         return r.json().get("text", "").strip()

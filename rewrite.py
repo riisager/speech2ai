@@ -3,8 +3,9 @@ import json
 import sys
 
 class RewriteEngine:
-    def __init__(self, config):
+    def __init__(self, config, session=None):
         self.config = config
+        self.session = session
 
     def process(self, text, style="cursor_prompt"):
         """Rewrites the transcribed text based on style and configured engine."""
@@ -67,7 +68,8 @@ class RewriteEngine:
             "temperature": 0.2
         }
         try:
-            r = requests.post(url, headers=headers, json=payload, timeout=8)
+            post_func = self.session.post if self.session else requests.post
+            r = post_func(url, headers=headers, json=payload, timeout=8)
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"].strip()
             else:
@@ -101,7 +103,8 @@ class RewriteEngine:
         }
         try:
             headers = {"Content-Type": "application/json"}
-            r = requests.post(url, headers=headers, json=payload, timeout=8)
+            post_func = self.session.post if self.session else requests.post
+            r = post_func(url, headers=headers, json=payload, timeout=8)
             if r.status_code == 200:
                 res_data = r.json()
                 return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -122,7 +125,8 @@ class RewriteEngine:
             "stream": False
         }
         try:
-            r = requests.post(url, json=payload, timeout=60)
+            post_func = self.session.post if self.session else requests.post
+            r = post_func(url, json=payload, timeout=60)
             if r.status_code == 200:
                 return r.json().get("response", "").strip()
             else:

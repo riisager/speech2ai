@@ -26,8 +26,9 @@ ACCENT_BLUE = "#007aff"     # iOS style clean blue
 ACCENT_GREEN = "#34c759"    # iOS style success green
 
 class RecordingOverlay(ctk.CTk):
-    def __init__(self, mode="direct", config=None, run_pipeline_callback=None):
+    def __init__(self, mode="direct", config=None, run_pipeline_callback=None, persistent=False):
         super().__init__()
+        self.persistent = persistent
         self.is_destroyed = False
         
         self.mode = mode.upper()
@@ -67,11 +68,64 @@ class RecordingOverlay(ctk.CTk):
 
     def destroy(self):
         """Forces clean termination of the process when the window is destroyed
-        to release the singleton file locks immediately.
+        unless running in persistent mode, in which case it is hidden.
         """
         self.is_destroyed = True
-        import os
-        os._exit(0)
+        if self.persistent:
+            self.withdraw()
+        else:
+            import os
+            os._exit(0)
+
+    def update_mode(self, mode):
+        self.mode = mode.upper()
+        if self.mode == "DIRECT":
+            display_mode = _t("badge_direct")
+            badge_color = ACCENT_BLUE
+        elif self.mode == "AI":
+            display_mode = _t("badge_ai")
+            badge_color = "#8e44ad"
+        else:
+            display_mode = _t("badge_prompt")
+            badge_color = "#e67e22"
+            
+        self.badge_frame.configure(fg_color=badge_color)
+        self.badge_label.configure(text=display_mode)
+
+    def show(self, mode, initial_keys=None):
+        self.is_destroyed = False
+        self.app_state = "recording"
+        self.status_text = _t("state_recording")
+        self.status_label.configure(text=self.status_text)
+        
+        # Center in bottom portion of screen
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        x = (screen_width - WINDOW_WIDTH) // 2
+        y = screen_height - WINDOW_HEIGHT - 85
+        self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{x}+{y}")
+        
+        # Reset border and LED colors
+        self.capsule.configure(border_color="#2c2c2e")
+        self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_RED)
+        
+        # Reset visualizer heights
+        self.bar_heights = [4.0] * self.num_bars
+        
+        # Update mode badge
+        self.update_mode(mode)
+        
+        # Reset stop requested
+        AudioRecorder.stop_requested = False
+        
+        # Deiconify (show window)
+        self.deiconify()
+        self.lift()
+        self.attributes("-topmost", True)
+        
+        # Restart flashing LED
+        self.led_flash_state = True
+        self.flash_led()
 
     def create_widgets(self):
         # Outer capsule container frame
@@ -256,17 +310,22 @@ class RecordingOverlay(ctk.CTk):
         except Exception:
             pass
 
-def start_overlay_pipeline(mode="direct", config=None):
+def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_keys=None, session=None):
     """Initializes and runs the GUI capsule overlay alongside the dictation pipeline."""
     # 1. Detect shortcut keys initially pressed on launch on the main thread
     # BEFORE starting Tkinter window mapping or background threads to prevent Xlib deadlocks.
-    initial_keys = get_pressed_keys()
-    if not initial_keys:
-        time.sleep(0.05)
+    if initial_keys is None:
         initial_keys = get_pressed_keys()
+        if not initial_keys:
+            time.sleep(0.05)
+            initial_keys = get_pressed_keys()
+            
+    is_warm_start = (overlay is not None)
+    if overlay is None:
+        overlay = RecordingOverlay(mode=mode, config=config, persistent=False)
+    else:
+        overlay.show(mode, initial_keys)
         
-    overlay = RecordingOverlay(mode=mode, config=config)
-    
     # We define the background runner inside a thread so Tkinter mainloop can remain active on main thread
     def thread_target():
         # TEMP files paths
@@ -297,18 +356,20 @@ def start_overlay_pipeline(mode="direct", config=None):
             if not audio_file or not os.path.exists(audio_file):
                 overlay.set_state("error", _t("state_canceled"))
                 time.sleep(1.0)
-                overlay.after(0, overlay.destroy)
+                if overlay.persistent:
+                    overlay.after(0, overlay.withdraw)
+                else:
+                    overlay.after(0, overlay.destroy)
                 return
                 
             # 2. Transcription Phase
-            # We import and call the transcribe functions from main
             from main import transcribe_gemini, transcribe_groq, transcribe_local_whisper
             
             engine = config.get("selected_engine", "gemini_cloud")
             if engine == "gemini_cloud":
-                raw_text = transcribe_gemini(audio_file, config)
+                raw_text = transcribe_gemini(audio_file, config, session=session)
             elif engine == "groq_cloud":
-                raw_text = transcribe_groq(audio_file, config)
+                raw_text = transcribe_groq(audio_file, config, session=session)
             elif engine == "local_whisper":
                 raw_text = transcribe_local_whisper(audio_file, config)
             else:
@@ -317,7 +378,10 @@ def start_overlay_pipeline(mode="direct", config=None):
             if not raw_text.strip():
                 overlay.set_state("error", _t("state_nothing_heard"))
                 time.sleep(1.2)
-                overlay.after(0, overlay.destroy)
+                if overlay.persistent:
+                    overlay.after(0, overlay.withdraw)
+                else:
+                    overlay.after(0, overlay.destroy)
                 return
                 
             # 3. Clean-up & Custom Dictionary
@@ -327,11 +391,11 @@ def start_overlay_pipeline(mode="direct", config=None):
             # 4. Rewrite (AI mode)
             if mode == "ai":
                 overlay.set_state("processing", _t("state_rewriting"))
-                rewriter = RewriteEngine(config)
+                rewriter = RewriteEngine(config, session=session)
                 clean_text = rewriter.process(clean_text, style="clean_transcription")
             elif mode == "ai_prompt":
                 overlay.set_state("processing", _t("state_rewriting"))
-                rewriter = RewriteEngine(config)
+                rewriter = RewriteEngine(config, session=session)
                 clean_text = rewriter.process(clean_text, style="cursor_prompt")
                 
             # 5. Paste & Success State
@@ -385,15 +449,19 @@ def start_overlay_pipeline(mode="direct", config=None):
                         except Exception:
                             pass
                     
-            # Fade-out window exit
-            overlay.after(0, overlay.destroy)
+            # Fade-out window exit / hide
+            if overlay.persistent:
+                overlay.after(0, overlay.withdraw)
+            else:
+                overlay.after(0, overlay.destroy)
 
     # Start pipeline thread
     pipeline_thread = threading.Thread(target=thread_target, daemon=True)
     pipeline_thread.start()
     
-    # Block and run UI loop on main thread
-    overlay.mainloop()
+    # Only run mainloop on main thread if not a warm start (daemon already has mainloop)
+    if not is_warm_start:
+        overlay.mainloop()
 
 if __name__ == "__main__":
     os.chdir(SCRIPT_DIR)

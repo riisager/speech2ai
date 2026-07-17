@@ -136,6 +136,9 @@ chmod +x "${LAUNCHERS_DIR}/speech2ai-settings.desktop"
 cp "${LAUNCHERS_DIR}/speech2ai.desktop" "${AUTOSTART_DIR}/speech2ai.desktop"
 chmod +x "${AUTOSTART_DIR}/speech2ai.desktop"
 
+# 5.4 Ensure trigger.py has execution permissions
+chmod +x "${SCRIPT_DIR}/trigger.py"
+
 echo -e "✓ Desktop-genveje og autostart oprettet succesfuldt!"
 
 # Final Instructions

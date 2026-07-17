@@ -1093,8 +1093,8 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         import subprocess, os
         script_dir = os.path.dirname(os.path.abspath(__file__))
         python_path = os.path.join(script_dir, ".venv/bin/python")
-        main_path = os.path.join(script_dir, "main.py")
-        target_command = f"{python_path} {main_path} {mode}"
+        trigger_path = os.path.join(script_dir, "trigger.py")
+        target_command = f"{python_path} {trigger_path} {mode}"
         if mode == "direct":
             target_name = "Speech2AI2Text Diktat"
         elif mode == "ai":
