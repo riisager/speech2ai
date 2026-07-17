@@ -312,8 +312,15 @@ class RecordingOverlay(ctk.CTk):
 
 def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_keys=None, session=None):
     """Initializes and runs the GUI capsule overlay alongside the dictation pipeline."""
-    # 1. Detect shortcut keys initially pressed on launch on the main thread
-    # BEFORE starting Tkinter window mapping or background threads to prevent Xlib deadlocks.
+    # 1. Capture selected text first (before anything else to avoid losing focus/context)
+    selected_text = ""
+    if mode != "direct":
+        from output import ClipboardPaster
+        selected_text = ClipboardPaster.get_selected_text()
+        if selected_text:
+            print(f"Captured active selection: {len(selected_text)} chars")
+
+    # 2. Detect shortcut keys initially pressed on launch on the main thread
     if initial_keys is None:
         initial_keys = get_pressed_keys()
         if not initial_keys:
@@ -392,11 +399,11 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
             if mode == "ai":
                 overlay.set_state("processing", _t("state_rewriting"))
                 rewriter = RewriteEngine(config, session=session)
-                clean_text = rewriter.process(clean_text, style="clean_transcription")
+                clean_text = rewriter.process(clean_text, style="clean_transcription", selected_text=selected_text)
             elif mode == "ai_prompt":
                 overlay.set_state("processing", _t("state_rewriting"))
                 rewriter = RewriteEngine(config, session=session)
-                clean_text = rewriter.process(clean_text, style="cursor_prompt")
+                clean_text = rewriter.process(clean_text, style="cursor_prompt", selected_text=selected_text)
                 
             # 5. Paste & Success State
             overlay.set_state("success", _t("state_inserting"))

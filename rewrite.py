@@ -7,46 +7,70 @@ class RewriteEngine:
         self.config = config
         self.session = session
 
-    def process(self, text, style="cursor_prompt"):
+    def process(self, text, style="cursor_prompt", selected_text=None):
         """Rewrites the transcribed text based on style and configured engine."""
         if not text or not text.strip():
             return ""
 
-        prompts = {
-            "cursor_prompt": self.config.get(
-                "prompt_ai_prompt",
-                "You are an expert technical director. Translate the following spoken Danish/English description "
-                "into a highly precise, structured, and action-oriented prompt for an AI coding agent (like Cursor or Antigravity). "
-                "Focus on strict technical requirements, libraries, and clean architecture. "
-                "Output ONLY the final prompt. No conversational filler or markdown code blocks."
-            ),
-            "tech_doc": (
-                "Convert this spoken description into a clean, structured JSDoc, PyDoc, or Markdown system documentation "
-                "in professional English."
-            ),
-            "clean_transcription": self.config.get(
-                "prompt_ai",
-                "You are a professional editor. Clean up the following spoken transcription. "
-                "Fix grammatical errors, remove stutters, filler words, and clean up sentence structure. "
-                "Keep the language of the original text (Danish or English). "
-                "Output ONLY the cleaned text."
-            )
-        }
-        
-        system_prompt = prompts.get(style, prompts["cursor_prompt"])
+        if selected_text:
+            if style == "cursor_prompt":
+                system_prompt = (
+                    "You are an expert technical director. Generate a highly precise, structured, and action-oriented prompt "
+                    "for an AI coding agent (like Cursor or Antigravity) based on the user's spoken instruction and the selected code/context. "
+                    "Output ONLY the final prompt. No conversational filler or markdown code blocks."
+                )
+                user_content = (
+                    f"Selected Context/Code:\n```\n{selected_text}\n```\n\n"
+                    f"Spoken Instruction: {text}"
+                )
+            else: # clean_transcription
+                system_prompt = (
+                    "Du er en intelligent assistent, der hjælper med at redigere tekst, svare på mails eller skrive kode baseret på brugerens instruktion.\n"
+                    "Udfør instruktionen direkte på den markerede tekst. "
+                    "Output KUN det færdige resultat, som skal erstatte den markerede tekst (eller udgøre svaret). "
+                    "Ingen forklaringer, ingen introduktioner, intet 'Her er dit resultat'. Svar på det sprog, der er naturligt for konteksten (dansk eller engelsk)."
+                )
+                user_content = (
+                    f"Markeret tekst:\n{selected_text}\n\n"
+                    f"Mundtlig instruktion: {text}"
+                )
+            query_text = user_content
+        else:
+            prompts = {
+                "cursor_prompt": self.config.get(
+                    "prompt_ai_prompt",
+                    "You are an expert technical director. Translate the following spoken Danish/English description "
+                    "into a highly precise, structured, and action-oriented prompt for an AI coding agent (like Cursor or Antigravity). "
+                    "Focus on strict technical requirements, libraries, and clean architecture. "
+                    "Output ONLY the final prompt. No conversational filler or markdown code blocks."
+                ),
+                "tech_doc": (
+                    "Convert this spoken description into a clean, structured JSDoc, PyDoc, or Markdown system documentation "
+                    "in professional English."
+                ),
+                "clean_transcription": self.config.get(
+                    "prompt_ai",
+                    "You are a professional editor. Clean up the following spoken transcription. "
+                    "Fix grammatical errors, remove stutters, filler words, and clean up sentence structure. "
+                    "Keep the language of the original text (Danish or English). "
+                    "Output ONLY the cleaned text."
+                )
+            }
+            system_prompt = prompts.get(style, prompts["cursor_prompt"])
+            query_text = text
         
         # Decide whether to rewrite locally or in the cloud
         if self.config.get("rewrite_locally", False):
-            return self._ollama_rewrite(text, system_prompt)
+            return self._ollama_rewrite(query_text, system_prompt)
         
         # If cloud rewrite is selected, try using Groq or Gemini depending on engine/presence of key
         # If gemini is the selected engine, default to Gemini for rewrite, otherwise default to Groq.
         if self.config.get("selected_engine") == "gemini_cloud" and self.config.get("gemini_api_key"):
-            return self._gemini_rewrite(text, system_prompt)
+            return self._gemini_rewrite(query_text, system_prompt)
         elif self.config.get("groq_api_key"):
-            return self._groq_rewrite(text, system_prompt)
+            return self._groq_rewrite(query_text, system_prompt)
         elif self.config.get("gemini_api_key"):
-            return self._gemini_rewrite(text, system_prompt)
+            return self._gemini_rewrite(query_text, system_prompt)
         else:
             print("No API key available for rewriting. Returning raw text.", file=sys.stderr)
             return text

@@ -89,3 +89,90 @@ class ClipboardPaster:
                     p.communicate(input=old_clip)
             except Exception as e:
                 print(f"Wayland copy/paste failed: {e}", file=sys.stderr)
+
+    @staticmethod
+    def get_selected_text():
+        """Attempts to retrieve currently selected/highlighted text using Ctrl+C simulation."""
+        session = os.environ.get("XDG_SESSION_TYPE", "").lower()
+        is_wayland = (session == "wayland")
+        
+        selected_text = ""
+        if not is_wayland:
+            # --- X11 implementation ---
+            old_clip = None
+            try:
+                # 1. Backup existing clipboard content
+                old_clip = subprocess.check_output(
+                    ["xclip", "-selection", "clipboard", "-o"], 
+                    stderr=subprocess.DEVNULL
+                )
+            except Exception:
+                pass
+
+            try:
+                # 2. Clear clipboard
+                p = subprocess.Popen(["xclip", "-selection", "clipboard", "-in"], stdin=subprocess.PIPE)
+                p.communicate(input=b"")
+
+                # 3. Trigger Ctrl+C (copy selection)
+                subprocess.run(["xdotool", "key", "--clearmodifiers", "ctrl+c"])
+                
+                # Wait briefly for selection to copy
+                time.sleep(0.15)
+                
+                # 4. Read clipboard
+                text_bytes = subprocess.check_output(
+                    ["xclip", "-selection", "clipboard", "-o"], 
+                    stderr=subprocess.DEVNULL
+                )
+                selected_text = text_bytes.decode('utf-8', errors='ignore').strip()
+                
+                # 5. Restore original clipboard
+                if old_clip is not None:
+                    p = subprocess.Popen(["xclip", "-selection", "clipboard", "-in"], stdin=subprocess.PIPE)
+                    p.communicate(input=old_clip)
+            except Exception as e:
+                print(f"X11 get selected text failed: {e}", file=sys.stderr)
+        else:
+            # --- Wayland implementation ---
+            old_clip = None
+            try:
+                # Backup
+                old_clip = subprocess.check_output(["wl-paste", "-n"], stderr=subprocess.DEVNULL)
+            except Exception:
+                pass
+
+            try:
+                # Clear clipboard
+                p = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE)
+                p.communicate(input=b"")
+
+                # Trigger Ctrl+C
+                ydotool_success = False
+                try:
+                    # ydotool key ctrl+c (29 = ctrl, 46 = c)
+                    subprocess.run(["ydotool", "key", "29:1", "46:1", "46:0", "29:0"], check=True, stderr=subprocess.DEVNULL)
+                    ydotool_success = True
+                except Exception:
+                    pass
+
+                if not ydotool_success:
+                    try:
+                        subprocess.run(["wtype", "-M", "ctrl", "c"], check=True, stderr=subprocess.DEVNULL)
+                    except Exception:
+                        pass
+
+                time.sleep(0.15)
+                
+                # Read selection
+                text_bytes = subprocess.check_output(["wl-paste", "-n"], stderr=subprocess.DEVNULL)
+                selected_text = text_bytes.decode('utf-8', errors='ignore').strip()
+                
+                # Restore
+                if old_clip is not None:
+                    p = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE)
+                    p.communicate(input=old_clip)
+            except Exception as e:
+                print(f"Wayland get selected text failed: {e}", file=sys.stderr)
+
+        return selected_text
