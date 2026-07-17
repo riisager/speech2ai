@@ -87,7 +87,8 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             "enable_gui_overlay": True,
             "shortcut_direct": "<Super>y",
             "shortcut_ai": "<Super><Shift>y",
-            "shortcut_ai_prompt": "<Super><Control>y"
+            "shortcut_ai_prompt": "<Super><Control>y",
+            "language": "en"
         })
         self.vocab = self.load_json(VOCAB_PATH, {
             "pimplify": "PIMplify",
@@ -277,7 +278,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         # Language Settings
         lbl_lang = ctk.CTkLabel(scroll_frame, text=_t("lang_lbl"), font=ctk.CTkFont(size=12, weight="bold"))
         lbl_lang.pack(anchor="w", pady=(5, 0))
-        self.lang_var = ctk.StringVar(value=self.config.get("language", "da"))
+        self.lang_var = ctk.StringVar(value=self.config.get("language", "en"))
         self.lang_dropdown = ctk.CTkOptionMenu(
             scroll_frame, 
             values=["da", "en", "es"],

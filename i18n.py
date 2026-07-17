@@ -249,15 +249,15 @@ def get_current_language():
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 config = json.load(f)
-                return config.get("language", "da")
+                return config.get("language", "en")
         except Exception:
             pass
-    return "da"
+    return "en"
 
 CURRENT_LANG = get_current_language()
 
 def _t(key, lang=None):
     if not lang:
         lang = CURRENT_LANG
-    translations = TRANSLATIONS.get(lang, TRANSLATIONS["da"])
-    return translations.get(key, TRANSLATIONS["da"].get(key, key))
+    translations = TRANSLATIONS.get(lang, TRANSLATIONS["en"])
+    return translations.get(key, TRANSLATIONS["en"].get(key, key))

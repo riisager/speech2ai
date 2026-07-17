@@ -67,7 +67,8 @@ def load_config():
         "enable_notifications": True,
         "enable_beeps": True,
         "beep_volume": 0.2,
-        "enable_gui_overlay": True
+        "enable_gui_overlay": True,
+        "language": "en"
     }
     
     if os.path.exists(CONFIG_PATH):
