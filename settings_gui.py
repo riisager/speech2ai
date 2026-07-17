@@ -26,6 +26,33 @@ ctk.set_default_color_theme("blue")
 CONFIG_PATH = "config.json"
 VOCAB_PATH = "vocabulary.json"
 
+class AutoScrollableFrame(ctk.CTkScrollableFrame):
+    """A CTkScrollableFrame that only displays the scrollbar when content height exceeds visible area."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.bind("<Configure>", self._update_scrollbar_visibility, add="+")
+        self._parent_canvas.bind("<Configure>", self._update_scrollbar_visibility, add="+")
+        
+    def _update_scrollbar_visibility(self, event=None):
+        self.after(10, self._check_scrollbar)
+
+    def _check_scrollbar(self):
+        try:
+            if not self.winfo_exists():
+                return
+            scrollregion = self._parent_canvas.bbox("all")
+            if not scrollregion:
+                return
+            content_height = scrollregion[3] - scrollregion[1]
+            canvas_height = self._parent_canvas.winfo_height()
+            
+            if content_height > canvas_height:
+                self._scrollbar.grid()
+            else:
+                self._scrollbar.grid_remove()
+        except Exception:
+            pass
+
 class CollapsibleFrame(ctk.CTkFrame):
     def __init__(self, parent, title="", expanded=False, **kwargs):
         super().__init__(parent, **kwargs)
@@ -333,7 +360,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         tab = self.tabview.tab(_t("tab_cloud"))
         tab.configure(fg_color="#090D16")
         
-        scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
+        scroll_frame = AutoScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Engine selection
@@ -436,7 +463,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         tab = self.tabview.tab(_t("tab_local"))
         tab.configure(fg_color="#090D16")
         
-        scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
+        scroll_frame = AutoScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Ollama Configuration (Collapsible Card)
@@ -574,7 +601,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         tab = self.tabview.tab(_t("tab_system"))
         tab.configure(fg_color="#090D16")
         
-        scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
+        scroll_frame = AutoScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Feedback & notifications
@@ -840,7 +867,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.search_entry.bind("<KeyRelease>", lambda event: self.filter_vocab_list())
         
         # Lower area: Vocabulary mapping list
-        self.vocab_scroll = ctk.CTkScrollableFrame(tab, width=680, height=400, fg_color="transparent")
+        self.vocab_scroll = AutoScrollableFrame(tab, width=680, height=400, fg_color="transparent")
         self.vocab_scroll.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.refresh_vocab_list()
@@ -904,7 +931,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         tab.configure(fg_color="#090D16")
         
         # Scrollable container for Prompts to ensure responsiveness
-        scroll_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
+        scroll_frame = AutoScrollableFrame(tab, fg_color="transparent")
         scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
         
         lbl_info = ctk.CTkLabel(
