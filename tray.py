@@ -155,13 +155,31 @@ def run_tray():
     monitor_thread.start()
     icon.run()
 
+pipeline_active = False
+pipeline_start_time = 0.0
+
 def start_recording_from_socket(overlay, config, mode, session):
     """Runs the visual pipeline or stops recording if a second trigger is received."""
-    if os.path.exists(LOCK_FILE):
-        print("Double-trigger received while active: signaling recording stop.")
-        AudioRecorder.request_stop()
+    global pipeline_active, pipeline_start_time
+    now = time.time()
+    
+    if pipeline_active:
+        # Only stop if at least 0.5s has elapsed since recording started
+        if now - pipeline_start_time >= 0.5:
+            print("Toggle stop requested via secondary trigger.")
+            AudioRecorder.request_stop()
+        else:
+            print("Ignored rapid duplicate trigger (<0.5s).")
         return
-        
+
+    # Mark active synchronously on main thread BEFORE spawning background pipeline
+    pipeline_active = True
+    pipeline_start_time = now
+
+    def on_pipeline_finished():
+        global pipeline_active
+        pipeline_active = False
+
     initial_keys = PlatformCompat.get_pressed_keys()
     fresh_config = load_config()
     start_overlay_pipeline(
@@ -169,7 +187,8 @@ def start_recording_from_socket(overlay, config, mode, session):
         config=fresh_config, 
         overlay=overlay, 
         initial_keys=initial_keys, 
-        session=session
+        session=session,
+        on_finish_callback=on_pipeline_finished
     )
 
 def run_socket_server(overlay, config, session):

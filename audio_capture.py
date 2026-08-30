@@ -71,6 +71,7 @@ class AudioRecorder:
     current_volume = 0.0
     _stop_event = threading.Event()
     _cancel_event = threading.Event()
+    _recording_lock = threading.Lock()
 
     @classmethod
     def request_stop(cls):
@@ -131,6 +132,16 @@ class AudioRecorder:
         """Records audio from the microphone.
         Supports both Hold-to-Talk and Toggle (click/hotkey to stop) modes.
         """
+        if not AudioRecorder._recording_lock.acquire(blocking=False):
+            print("Warning: Audio recording is already active. Ignoring overlapping stream.", file=sys.stderr)
+            return None
+
+        try:
+            return self._record_internal(max_duration, output_path, enable_beeps, beep_volume, initial_keys, mode_preference)
+        finally:
+            AudioRecorder._recording_lock.release()
+
+    def _record_internal(self, max_duration=30, output_path="/tmp/dictation.wav", enable_beeps=True, beep_volume=0.2, initial_keys=None, mode_preference="auto"):
         import sounddevice as sd
 
         AudioRecorder.reset_events()

@@ -293,7 +293,7 @@ class RecordingOverlay(ctk.CTk):
             pass
 
 
-def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_keys=None, session=None):
+def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_keys=None, session=None, on_finish_callback=None):
     """Initializes and runs the GUI capsule overlay alongside the dictation pipeline."""
     if session is None:
         session = create_resilient_session()
@@ -406,6 +406,12 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
                 overlay.after(0, overlay.withdraw)
             else:
                 overlay.after(0, overlay.destroy)
+
+            if on_finish_callback:
+                try:
+                    on_finish_callback()
+                except Exception:
+                    pass
 
     pipeline_thread = threading.Thread(target=thread_target, daemon=True)
     pipeline_thread.start()
