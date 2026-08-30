@@ -104,6 +104,9 @@ ICON_PATH="${SCRIPT_DIR}/speech2ai2text_icon.png"
 mkdir -p "$LAUNCHERS_DIR"
 mkdir -p "$AUTOSTART_DIR"
 
+# Clean up legacy launcher filenames
+rm -f "${LAUNCHERS_DIR}/speech2ai2text-settings.desktop" "${LAUNCHERS_DIR}/speech2ai2text-tray.desktop" "${LAUNCHERS_DIR}/speech2ai2text.desktop"
+
 # 5.1 Speech2AI Start Launcher (System Tray)
 cat <<EOF > "${LAUNCHERS_DIR}/speech2ai.desktop"
 [Desktop Entry]
