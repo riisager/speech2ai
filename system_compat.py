@@ -1,7 +1,6 @@
 import os
 import sys
 import subprocess
-import time
 import ctypes
 
 class PlatformCompat:
@@ -29,32 +28,19 @@ class PlatformCompat:
 
     @staticmethod
     def get_selected_text():
-        """Captures the active highlighted/selected text instantly with zero unnecessary delays.
-        Prioritizes the primary selection buffer (X11 / Wayland PRIMARY), falling back to clipboard.
+        """Captures the active highlighted/selected text passively with zero delays or fake key events.
+        Directly queries the X11 / Wayland PRIMARY selection buffer.
         """
         is_wayland = PlatformCompat.is_wayland()
         selected_text = ""
 
         if is_wayland:
-            # --- 1. Wayland Primary Selection (Ultra-fast, non-destructive) ---
+            # 1. Wayland Primary Selection (instantaneous, passive)
             try:
                 out = subprocess.check_output(
                     ["wl-paste", "--primary", "--no-newline"], 
                     stderr=subprocess.DEVNULL,
-                    timeout=0.2
-                )
-                selected_text = out.decode("utf-8", errors="ignore").strip()
-                if selected_text:
-                    return selected_text
-            except Exception:
-                pass
-
-            # --- 2. Wayland Standard Clipboard Fallback ---
-            try:
-                out = subprocess.check_output(
-                    ["wl-paste", "--no-newline"], 
-                    stderr=subprocess.DEVNULL,
-                    timeout=0.2
+                    timeout=0.08
                 )
                 selected_text = out.decode("utf-8", errors="ignore").strip()
                 if selected_text:
@@ -63,53 +49,16 @@ class PlatformCompat:
                 pass
 
         else:
-            # --- 1. X11 Primary Selection (Instantaneous, non-destructive) ---
+            # 1. X11 Primary Selection (instantaneous, passive, no keystrokes)
             try:
                 out = subprocess.check_output(
                     ["xclip", "-selection", "primary", "-o"], 
                     stderr=subprocess.DEVNULL,
-                    timeout=0.2
+                    timeout=0.08
                 )
                 selected_text = out.decode("utf-8", errors="ignore").strip()
                 if selected_text:
                     return selected_text
-            except Exception:
-                pass
-
-            # --- 2. X11 Clipboard Copy-Simulation Fallback ---
-            # Used when the app only copies to clipboard rather than primary selection
-            try:
-                # Attempt to get selected text via quick copy simulation
-                old_clip = None
-                try:
-                    old_clip = subprocess.check_output(
-                        ["xclip", "-selection", "clipboard", "-o"], 
-                        stderr=subprocess.DEVNULL,
-                        timeout=0.1
-                    )
-                except Exception:
-                    pass
-
-                # Clear clipboard
-                p = subprocess.Popen(["xclip", "-selection", "clipboard", "-in"], stdin=subprocess.PIPE)
-                p.communicate(input=b"", timeout=0.1)
-
-                # Send Ctrl+C without modifiers
-                subprocess.run(["xdotool", "key", "--clearmodifiers", "ctrl+c"], timeout=0.2)
-                time.sleep(0.04) # minimal 40ms wait for buffer sync
-
-                # Read result
-                text_bytes = subprocess.check_output(
-                    ["xclip", "-selection", "clipboard", "-o"], 
-                    stderr=subprocess.DEVNULL,
-                    timeout=0.1
-                )
-                selected_text = text_bytes.decode("utf-8", errors="ignore").strip()
-
-                # Restore if nothing was copied
-                if not selected_text and old_clip is not None:
-                    p = subprocess.Popen(["xclip", "-selection", "clipboard", "-in"], stdin=subprocess.PIPE)
-                    p.communicate(input=old_clip, timeout=0.1)
             except Exception:
                 pass
 
@@ -124,17 +73,14 @@ class PlatformCompat:
         is_wayland = PlatformCompat.is_wayland()
 
         if is_wayland:
-            # Copy to Wayland clipboard permanently
             try:
                 p = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE)
                 p.communicate(input=text.encode("utf-8"), timeout=0.5)
             except Exception as e:
                 print(f"Wayland wl-copy error: {e}", file=sys.stderr)
 
-            # Trigger Ctrl+V on Wayland
             pasted = False
             try:
-                # ydotool: 29=leftctrl, 47=v
                 subprocess.run(["ydotool", "key", "29:1", "47:1", "47:0", "29:0"], check=True, stderr=subprocess.DEVNULL, timeout=0.3)
                 pasted = True
             except Exception:
@@ -147,22 +93,17 @@ class PlatformCompat:
                 except Exception:
                     pass
 
-            if not pasted:
-                print("Notice: Text copied to Wayland clipboard. Press Ctrl+V to paste manually.", file=sys.stderr)
-
         else:
             # X11 implementation
             try:
-                # Copy to X11 clipboard permanently
                 p = subprocess.Popen(["xclip", "-selection", "clipboard", "-in"], stdin=subprocess.PIPE)
                 p.communicate(input=text.encode("utf-8"), timeout=0.5)
 
-                # Trigger Ctrl+V
+                # Send clean Ctrl+V paste
                 subprocess.run(["xdotool", "key", "--clearmodifiers", "ctrl+v"], timeout=0.5)
             except Exception as e:
                 print(f"X11 paste failed: {e}", file=sys.stderr)
                 try:
-                    # Fallback typing
                     subprocess.run(["xdotool", "type", "--delay", "5", text], timeout=1.5)
                 except Exception:
                     pass
@@ -171,7 +112,6 @@ class PlatformCompat:
     def get_pressed_keys(display=None):
         """Thread-safe physical keycode query for X11. Returns set of keycodes or empty set on Wayland."""
         if PlatformCompat.is_wayland():
-            # Key polling is restricted by Wayland security model; return empty set
             return set()
 
         try:

@@ -298,13 +298,6 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
     if session is None:
         session = create_resilient_session()
 
-    # 1. Capture selected text immediately with 0ms artificial sleep
-    selected_text = ""
-    if mode != "direct":
-        selected_text = PlatformCompat.get_selected_text()
-        if selected_text:
-            print(f"Captured active selection: {len(selected_text)} chars")
-
     if initial_keys is None:
         initial_keys = PlatformCompat.get_pressed_keys()
             
@@ -324,6 +317,13 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
                 f.write(mode)
         except Exception:
             pass
+
+        # 1. Passive selected text capture (instantaneous in thread)
+        selected_text = ""
+        if mode != "direct":
+            selected_text = PlatformCompat.get_selected_text()
+            if selected_text:
+                print(f"Captured active selection: {len(selected_text)} chars")
             
         try:
             # Parallel TLS pre-warm while user speaks
