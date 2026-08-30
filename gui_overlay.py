@@ -348,7 +348,7 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
             
         try:
             # 1. Recording Phase
-            recorder = AudioRecorder()
+            recorder = AudioRecorder(device_name=config.get("input_device"))
             audio_file = recorder.record(
                 max_duration=config.get("max_recording_time", 30), 
                 output_path=TEMP_WAV_PATH, 

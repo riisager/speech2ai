@@ -90,9 +90,27 @@ class AudioRecorder:
     current_volume = 0.0
     stop_requested = False
 
-    def __init__(self, sample_rate=16000, channels=1):
+    @staticmethod
+    def get_device_index_by_name(name):
+        if not name:
+            return None
+        import sounddevice as sd
+        try:
+            devices = sd.query_devices()
+            for i, dev in enumerate(devices):
+                if dev['name'] == name and dev['max_input_channels'] > 0:
+                    return i
+            for i, dev in enumerate(devices):
+                if name in dev['name'] and dev['max_input_channels'] > 0:
+                    return i
+        except Exception:
+            pass
+        return None
+
+    def __init__(self, sample_rate=16000, channels=1, device_name=None):
         self.sample_rate = sample_rate
         self.channels = channels
+        self.device_index = self.get_device_index_by_name(device_name)
 
     def play_beep(self, frequency=550, duration=0.08, volume=0.15):
         """Plays a programmatic sine wave beep tone asynchronously in a background thread."""
@@ -170,7 +188,7 @@ class AudioRecorder:
             
             try:
                 with sd.InputStream(samplerate=self.sample_rate, channels=self.channels, 
-                                     dtype='int16', callback=callback):
+                                     device=self.device_index, dtype='int16', callback=callback):
                     
                     # Minimum duration to avoid instant triggers from key bounce
                     min_duration = 0.3

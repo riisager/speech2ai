@@ -698,6 +698,49 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.max_time_entry.insert(0, str(self.config.get("max_recording_time", 30)))
         self.max_time_entry.pack(anchor="w", pady=(5, 20))
  
+        # Microphone input device selection
+        lbl_mic = ctk.CTkLabel(
+            scroll_frame, 
+            text=_t("mic_lbl"), 
+            text_color="#E2E8F0"
+        )
+        lbl_mic.pack(anchor="w", pady=(5, 0))
+        
+        try:
+            import sounddevice as sd
+            devices = sd.query_devices()
+            self.input_devices_list = [_t("mic_default")]
+            for dev in devices:
+                if dev['max_input_channels'] > 0:
+                    name = dev['name']
+                    if name not in self.input_devices_list:
+                        self.input_devices_list.append(name)
+        except Exception:
+            self.input_devices_list = [_t("mic_default")]
+
+        saved_mic = self.config.get("input_device")
+        if not saved_mic or saved_mic not in self.input_devices_list:
+            current_mic_val = _t("mic_default")
+        else:
+            current_mic_val = saved_mic
+            
+        self.mic_var = ctk.StringVar(value=current_mic_val)
+        self.mic_dropdown = ctk.CTkOptionMenu(
+            scroll_frame, 
+            values=self.input_devices_list,
+            variable=self.mic_var,
+            width=350,
+            fg_color="#131A26",
+            button_color="#1E293B",
+            button_hover_color="#334155",
+            dropdown_fg_color="#131A26",
+            dropdown_hover_color="#1E293B",
+            dropdown_text_color="#E2E8F0",
+            text_color="#E2E8F0",
+            corner_radius=8
+        )
+        self.mic_dropdown.pack(anchor="w", pady=(5, 20))
+
         # Language Settings
         lbl_lang = ctk.CTkLabel(
             scroll_frame, 
@@ -1038,6 +1081,12 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.config["beep_volume"] = float(round(self.vol_slider.get(), 2))
         self.config["enable_gui_overlay"] = self.overlay_var.get()
         self.config["language"] = self.lang_var.get()
+        
+        selected_mic = self.mic_var.get()
+        if selected_mic == _t("mic_default"):
+            self.config["input_device"] = ""
+        else:
+            self.config["input_device"] = selected_mic
         
         # Save custom prompts
         self.config["prompt_ai"] = self.prompt_ai_text.get("1.0", "end-1c").strip()

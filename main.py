@@ -207,7 +207,7 @@ def run_pipeline(mode="direct"):
 
     try:
         # 1. Optag lyd fra mikrofon
-        recorder = AudioRecorder()
+        recorder = AudioRecorder(device_name=config.get("input_device"))
         audio_file = recorder.record(
             max_duration=config.get("max_recording_time", 30), 
             output_path=TEMP_WAV_PATH, 
