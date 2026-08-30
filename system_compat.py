@@ -27,15 +27,30 @@ class PlatformCompat:
         }
 
     @staticmethod
+    def clear_primary_selection():
+        """Clears the transient primary selection buffer to prevent stale highlights from persisting."""
+        is_wayland = PlatformCompat.is_wayland()
+        if is_wayland:
+            try:
+                subprocess.run(["wl-copy", "--primary", "--clear"], stderr=subprocess.DEVNULL, timeout=0.1)
+            except Exception:
+                pass
+        else:
+            try:
+                p = subprocess.Popen(["xclip", "-selection", "primary", "-in"], stdin=subprocess.PIPE)
+                p.communicate(input=b"", timeout=0.1)
+            except Exception:
+                pass
+
+    @staticmethod
     def get_selected_text():
-        """Captures the active highlighted/selected text passively with zero delays or fake key events.
+        """Captures the active highlighted/selected text passively.
         Directly queries the X11 / Wayland PRIMARY selection buffer.
         """
         is_wayland = PlatformCompat.is_wayland()
         selected_text = ""
 
         if is_wayland:
-            # 1. Wayland Primary Selection (instantaneous, passive)
             try:
                 out = subprocess.check_output(
                     ["wl-paste", "--primary", "--no-newline"], 
@@ -43,13 +58,9 @@ class PlatformCompat:
                     timeout=0.08
                 )
                 selected_text = out.decode("utf-8", errors="ignore").strip()
-                if selected_text:
-                    return selected_text
             except Exception:
                 pass
-
         else:
-            # 1. X11 Primary Selection (instantaneous, passive, no keystrokes)
             try:
                 out = subprocess.check_output(
                     ["xclip", "-selection", "primary", "-o"], 
@@ -57,10 +68,12 @@ class PlatformCompat:
                     timeout=0.08
                 )
                 selected_text = out.decode("utf-8", errors="ignore").strip()
-                if selected_text:
-                    return selected_text
             except Exception:
                 pass
+
+        # Sanitize and truncate excessively large selections
+        if len(selected_text) > 3000:
+            selected_text = selected_text[:3000]
 
         return selected_text
 
@@ -93,13 +106,14 @@ class PlatformCompat:
                 except Exception:
                     pass
 
+            PlatformCompat.clear_primary_selection()
+
         else:
             # X11 implementation
             try:
                 p = subprocess.Popen(["xclip", "-selection", "clipboard", "-in"], stdin=subprocess.PIPE)
                 p.communicate(input=text.encode("utf-8"), timeout=0.5)
 
-                # Send clean Ctrl+V paste
                 subprocess.run(["xdotool", "key", "--clearmodifiers", "ctrl+v"], timeout=0.5)
             except Exception as e:
                 print(f"X11 paste failed: {e}", file=sys.stderr)
@@ -107,6 +121,8 @@ class PlatformCompat:
                     subprocess.run(["xdotool", "type", "--delay", "5", text], timeout=1.5)
                 except Exception:
                     pass
+
+            PlatformCompat.clear_primary_selection()
 
     @staticmethod
     def get_pressed_keys(display=None):

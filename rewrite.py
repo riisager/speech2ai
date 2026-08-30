@@ -12,7 +12,6 @@ def clean_llm_output(output_str):
     if text.startswith("```") and text.endswith("```"):
         lines = text.splitlines()
         if len(lines) >= 2:
-            # Remove first and last lines (e.g. ```python ... ```)
             text = "\n".join(lines[1:-1]).strip()
 
     # Strip surrounding quotes if wrapped
@@ -36,24 +35,25 @@ class RewriteEngine:
         if selected_text:
             if style == "cursor_prompt":
                 system_prompt = (
-                    "You are an expert technical director. Generate a highly precise, structured, and action-oriented prompt "
-                    "for an AI coding agent (like Cursor or Antigravity) based on the user's spoken instruction and the selected code/context. "
-                    "Output ONLY the final prompt. No conversational filler or markdown code blocks."
+                    "You are an expert technical director. Translate the user's spoken thoughts and the highlighted context into "
+                    "a highly precise, single, actionable prompt for an AI coding agent (like Cursor or Antigravity). "
+                    "Output ONLY the final prompt. No conversational filler, no commentary, no markdown code blocks."
                 )
                 user_content = (
-                    f"Selected Context/Code:\n```\n{selected_text}\n```\n\n"
+                    f"Selected Context:\n```\n{selected_text}\n```\n\n"
                     f"Spoken Instruction: {text}"
                 )
             else: # clean_transcription
                 system_prompt = (
-                    "Du er en intelligent assistent, der hjælper med at redigere tekst, svare på mails eller skrive kode baseret på brugerens instruktion.\n"
-                    "Udfør instruktionen direkte på den markerede tekst. "
-                    "Output KUN det færdige resultat, som skal erstatte den markerede tekst (eller udgøre svaret). "
-                    "Ingen forklaringer, ingen introduktioner, intet 'Her er dit resultat'. Svar på det sprog, der er naturligt for konteksten (dansk eller engelsk)."
+                    "Du er en professionel korrekturlæser og sprogassistent. Din opgave er at renskrive og optimere den mundtlige diktat til flydende, korrekt dansk eller engelsk.\n"
+                    "- Ret grammatiske fejl, stavefejl og ufuldstændige sætninger.\n"
+                    "- Fjern tøveord og fyldord (f.eks. 'øh', 'æh', 'um', 'du ved').\n"
+                    "- Bevar sproget fra den mundtlige diktat (dansk eller engelsk).\n"
+                    "- Output KUN den færdige, rensede tekst. Skriv ALDRIG samtaler, forklaringer, 'Her er dit svar', eller alternative svarmuligheder."
                 )
                 user_content = (
-                    f"Markeret tekst:\n{selected_text}\n\n"
-                    f"Mundtlig instruktion: {text}"
+                    f"Kontekst (hvis relevant):\n{selected_text}\n\n"
+                    f"Mundtlig diktat: {text}"
                 )
             query_text = user_content
         else:
@@ -65,19 +65,15 @@ class RewriteEngine:
                     "Focus on strict technical requirements, libraries, and clean architecture. "
                     "Output ONLY the final prompt. No conversational filler or markdown code blocks."
                 ),
-                "tech_doc": (
-                    "Convert this spoken description into a clean, structured JSDoc, PyDoc, or Markdown system documentation "
-                    "in professional English."
-                ),
                 "clean_transcription": self.config.get(
                     "prompt_ai",
                     "You are a professional editor. Clean up the following spoken transcription. "
                     "Fix grammatical errors, remove stutters, filler words, and clean up sentence structure. "
                     "Keep the language of the original text (Danish or English). "
-                    "Output ONLY the cleaned text."
+                    "Output ONLY the cleaned text. Never include explanations or alternative options."
                 )
             }
-            system_prompt = prompts.get(style, prompts["cursor_prompt"])
+            system_prompt = prompts.get(style, prompts["clean_transcription"])
             query_text = text
         
         # Decide whether to rewrite locally or in the cloud
@@ -108,7 +104,7 @@ class RewriteEngine:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": text}
             ],
-            "temperature": 0.2
+            "temperature": 0.1
         }
         try:
             post_func = self.session.post if self.session else requests.post
@@ -140,7 +136,7 @@ class RewriteEngine:
                 }
             ],
             "generationConfig": {
-                "temperature": 0.2
+                "temperature": 0.1
             }
         }
         try:
@@ -173,5 +169,5 @@ class RewriteEngine:
             else:
                 print(f"Ollama API error ({r.status_code}): {r.text}", file=sys.stderr)
         except Exception as e:
-            print(f"Ollama rewrite request failed: {e}", file=sys.stderr)
+            print(f"Ollama rewrite request failed (is Ollama running?): {e}", file=sys.stderr)
         return text
