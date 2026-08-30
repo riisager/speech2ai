@@ -103,12 +103,6 @@ class RecordingOverlay(ctk.CTk):
         self.status_text = _t("state_recording")
         self.status_label.configure(text=self.status_text)
         
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        x = (screen_width - WINDOW_WIDTH) // 2
-        y = screen_height - WINDOW_HEIGHT - 85
-        self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{x}+{y}")
-        
         self.capsule.configure(border_color="#2c2c2e")
         self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_RED)
         self.bar_heights = [4.0] * self.num_bars
@@ -116,9 +110,11 @@ class RecordingOverlay(ctk.CTk):
         self.update_mode(mode)
         AudioRecorder.reset_events()
         
+        # Deiconify and immediately flush paint queue to X11/Wayland
         self.deiconify()
         self.lift()
         self.attributes("-topmost", True)
+        self.update_idletasks()
         
         self.led_flash_state = True
         self.flash_led()
