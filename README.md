@@ -1,62 +1,52 @@
-# speech2ai - Next-Gen AI Voice Dictation for Linux (Wayland & X11)
+# speech2ai - AI-Powered Voice Dictation for Linux (Mint/Cinnamon)
 
-**speech2ai** is an open-source, ultra-optimized, future-proof voice dictation engine and AI coding companion for Linux desktop environments (fully compatible with **Wayland**—GNOME, KDE, Cinnamon Wayland, Hyprland, Sway—and **X11**). It allows you to dictate text directly into any active window or code editor using global keyboard shortcuts.
+**speech2ai** is an open-source, ultra-optimized voice dictation utility designed for Linux desktop environments (fully optimized for Linux Mint/Cinnamon and X11). It allows you to dictate text directly into any active input field (browsers, text editors, terminals) using global keyboard shortcuts.
 
-The system supports word-for-word dictation, intelligent grammar correction, and structured prompt generation for AI coding agents (such as Cursor or Antigravity).
+The system supports both direct word-for-word transcription and advanced AI rewrite modes, such as grammar correction and structured prompt generation for AI coding agents (e.g., Cursor or Antigravity).
 
----
+## 📊 System Flow & Architecture
 
-## 📊 System Architecture & Flow
+Below is a flow diagram representing the warm-start socket client-daemon architecture and selection-aware pipeline:
 
 ```mermaid
 graph TD
-    A[Global Shortcut Trigger] --> B(trigger.py Socket Client <15ms)
-    B --> C{Daemon Active?<br>/tmp/speech2ai.sock}
+    A[User presses shortcut key] --> B(Cinnamon executes trigger.py)
+    B --> C{Is daemon active?<br>does /tmp/speech2ai.sock exist?}
     
     %% Warm Start Flow
-    C -- Yes: Warm Start --> D[Instant Socket Dispatch]
-    D --> E[trigger.py exits immediately]
+    C -- Yes: Warm Start --> D[Send trigger + mode to socket]
+    D --> E[trigger.py exits immediately <20ms]
     
-    %% Cold Start Fallback
+    %% Cold Start Flow
     C -- No: Cold Start --> F[Execute main.py directly]
-    F --> G[Record, Transcribe & Paste Cold]
+    F --> G[Record audio, transcribe, and paste cold]
     
-    %% Daemon Execution
-    D -.-> H[Daemon tray.py receives trigger]
-    H --> I[1. Instant Selection Capture: Wayland wl-paste / X11 Primary]
-    H --> J[2. Reveal Pre-warmed HUD Overlay <10ms]
-    H --> K[3. Proactive TLS Keep-Alive Pre-warming]
+    %% Daemon processing
+    D -.-> H[Daemon receives socket trigger]
+    H --> I[Capture selected text via Ctrl+C backup/restore]
+    I --> J[Reveal pre-loaded overlay instantly deiconify]
+    J --> K[Record audio until shortcut is released]
+    K --> L[Transcribe audio using Keep-Alive HTTP Session]
+    L --> M{Is there selected text?}
     
-    J --> L[Audio Engine: Silence Trimming & RMS Leveling]
-    L --> M{Recording Mode}
-    M -- Toggle Mode --> N[Double-press Hotkey / Space / Click HUD to Stop]
-    M -- Hold-to-Talk --> O[Key Release Debounce Detection]
+    M -- Yes --> N[AI processes context + voice instruction]
+    M -- No --> O[AI proofreads / transcribes raw dictation]
     
-    N --> P[Process Audio with Gemini / Groq / Whisper]
+    N --> P[Write result permanently to clipboard]
     O --> P
-    
-    P --> Q{Selected Text Present?}
-    Q -- Yes --> R[AI Split-Prompt Context Engine]
-    Q -- No --> S[AI Grammar / Direct Transcribe]
-    
-    R --> T[Permanent Clipboard Write wl-copy / xclip]
-    S --> T
-    T --> U[Auto Paste & Withdraw HUD]
+    P --> Q[Simulate Ctrl+V paste & hide overlay withdraw]
 ```
 
 ---
 
-## ⚡ Next-Gen Performance & Future-Proof Standards
+## ⚡ Architectural Performance & Speed Optimizations
 
-This application is built with a high-performance **Client-Daemon architecture** designed for zero latency:
+This application is built with a high-performance **Client-Daemon architecture** designed to minimize latency at every layer of the system:
 
-1. **Wayland & X11 Dual Compatibility (`system_compat.py`):** Unified display server abstraction layer supporting modern Wayland tools (`wl-clipboard`, `wtype`, `ydotool`) and classic X11 with native zero-sleep primary selection extraction.
-2. **Dual Recording Modes:**
-   - **Toggle Mode (Default & Wayland Standard):** Press hotkey to start recording, press hotkey again (or click overlay / press Space) to finish and transcribe.
-   - **Hold-to-Talk Mode (Push-to-Talk):** Press and hold the shortcut, speak, and release to instantly insert text.
-3. **Zero-Idle-Latency TLS Pre-Warming:** Proactively warms up the HTTPS/TLS 1.3 connection to Google Gemini or Groq *in parallel while you are speaking*. When you stop speaking, the socket is already warm, eliminating idle connection wake-up latency.
-4. **Intelligent Silence Trimming:** Automatically analyzes voice energy (RMS) with NumPy to trim leading and trailing background silence before uploading, reducing audio payload size and accelerating transcription.
-5. **Persistent UNIX Socket Daemon (`tray.py`):** The system tray launcher runs as a lightweight daemon, pre-loading heavy audio and UI libraries in memory with clean `SIGTERM`/`SIGINT` lifecycle cleanup.
+1. **Persistent UNIX Socket Daemon (`tray.py`):** The system tray launcher runs as a background daemon, pre-loading heavy sound and UI libraries (like CustomTkinter, SoundDevice, PyStray) and active configurations in memory.
+2. **Instant Hotkey Client Trigger (`trigger.py`):** Global shortcuts are registered to call a lightweight trigger client that communicates with the daemon via a UNIX socket (`/tmp/speech2ai.sock`) in under **20ms**. It includes a transparent fallback to cold-start `main.py` if the daemon is stopped.
+3. **Preloaded Warm UI (`gui_overlay.py`):** The HUD visualizer window is instantiated and cached at startup in a hidden state (`withdraw`). On hotkey trigger, it repositions itself and displays instantly (`deiconify`), bypassing Tkinter window mapping overhead.
+4. **HTTP Connection Pooling (`requests.Session`):** The daemon maintains a persistent HTTP connection pool with Keep-Alive to cloud providers (Gemini and Groq). This avoids the overhead of repeated TCP/TLS handshakes, cutting **150ms - 300ms** off every cloud API request.
 
 ---
 
@@ -64,20 +54,19 @@ This application is built with a high-performance **Client-Daemon architecture**
 
 **speech2ai** includes an intelligent text-context parsing engine:
 
-- **Highlight & Dictate:** Highlight text anywhere on screen (in web browsers, IDEs, or read-only PDF viewers) and trigger dictation. The system captures the active selection instantly (in under 5ms) and bundles it with your spoken instructions.
+- **Highlight & Dictate:** Highlight text anywhere on screen (in web browsers, IDEs, or even read-only PDF viewers) and trigger dictation. The system securely captures the active selection (via a clipboard-safe copy-paste emulation) and bundles it with your spoken instructions.
 - **Split Prompting:** The AI engine splits your prompt to separate the highlighted context and your verbal command (e.g. *"Omskriv til engelsk"* or *"Gør denne funktion asynkron"*). The LLM processes the instructions relative to that context.
-- **Permanent Clipboard Fallback:** The final output is automatically copied to your system clipboard and remains there permanently. If you highlight text in a read-only viewer, the generated text is stored in your clipboard so you can paste it manually anytime.
+- **Persistent Clipboard Fallback:** The final output is automatically copied to your system clipboard and remains there permanently. If you highlight text in a read-only viewer where direct insertion fails, the generated text is stored in your clipboard so you can paste it manually again and again.
 
 ---
 
-## 🎨 Obsidian Dark Settings GUI
+## 🎨 Premium Obsidian Dark Settings GUI
 
-The Settings panel includes:
+The Settings panel has been redesigned with a premium dark mode inspired by modern productivity tools:
 
 - **Obsidian Theme:** Implements a deep Obsidian palette (`#090D16`), structured card widgets, and high-contrast Indigo accents (`#6366F1`).
-- **Microphone Input Selector:** Dynamically queries available audio input devices and allows configuring dedicated microphones.
-- **Recording Mode Configuration:** Easily switch between *Automatic*, *Toggle*, and *Hold-to-Talk*.
-- **Local Gemma Model Installer:** Download and configure local LLM models (e.g. `gemma4:e4b`) directly from the GUI with live download progress.
+- **Dynamic Auto-Scrollbars (`AutoScrollableFrame`):** A custom frame layout that dynamically monitors content height and only displays scrollbars when settings content overflows the screen vertical bounds, maintaining a clean visual state.
+- **Local Gemma Model Installer:** Download and configure local LLM models (e.g. `gemma:2b` or `gemma4:e4b`) directly from the GUI. It features a real-time progress monitor connecting to the Ollama HTTP stream API.
 
 ---
 
@@ -88,7 +77,7 @@ The Settings panel includes:
     1.  **Direct Dictation:** Transcribes spoken audio exactly as heard without any AI edits.
     2.  **AI Dictation (Grammar):** Corrects grammar, spelling, and removes stutters or filler words (such as *uh, um, er*) while maintaining the language of the original text.
     3.  **AI Prompt (Coding Agent):** Translates spoken Danish/English description into a precise, action-oriented prompt tailored for AI coding agents.
-*   **Built-in Localization (i18n):** Full support for **English**, **Danish**, and **Spanish**.
+*   **Built-in Localization (i18n):** Full support for **English**, **Danish**, and **Spanish**. The default language is English, and it can be changed directly from the settings GUI.
 *   **Custom Vocabulary (Ordbog):** Map mispronounced or technical terms to correct spellings (e.g., *æpi* ➔ *API*, *git hub* ➔ *GitHub*).
 *   **Automatic Mint/Cinnamon Integration:** Manage global keyboard shortcuts directly from the settings GUI, syncing programmatically with Linux Mint's `dconf` keybindings registry.
 
@@ -104,4 +93,27 @@ Set up **speech2ai** by running the automated installation script:
     chmod +x install.sh
     ./install.sh
     ```
+    *The installer checks for system packages (`xclip`, `xdotool`, `portaudio`, etc.) and offers to install them automatically.*
 3.  Restart your session (log out and back in) to activate the autostart and shortcut registry.
+
+---
+
+## ⚙️ Keyboard Shortcuts
+
+After installation, search for **Speech2AI Settings** in your start menu to enter your API keys and configure shortcuts.
+
+The application binds the following shortcuts by default:
+*   **Direct Dictation:** `Super + Y`
+    *   *Transcribes words directly to the cursor.*
+*   **AI Dictation (Grammar):** `Super + Shift + Y`
+    *   *Cleans grammatical filler words or translates/proofreads highlighted selections.*
+*   **AI Prompt (Coding):** `Super + Ctrl + Y`
+    *   *Generates structured programming prompts from your instructions and selected code.*
+
+You can change these in the settings interface, and the program will automatically update them in Linux Mint.
+
+---
+
+## ⚖️ License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.

@@ -741,42 +741,6 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         )
         self.mic_dropdown.pack(anchor="w", pady=(5, 20))
 
-        # Recording Mode Selection
-        lbl_rec_mode = ctk.CTkLabel(
-            scroll_frame, 
-            text=_t("rec_mode_lbl"), 
-            text_color="#E2E8F0",
-            font=ctk.CTkFont(size=12, weight="bold")
-        )
-        lbl_rec_mode.pack(anchor="w", pady=(5, 0))
-
-        self.mode_map = {
-            _t("rec_mode_auto"): "auto",
-            _t("rec_mode_toggle"): "toggle",
-            _t("rec_mode_hold"): "hold"
-        }
-        self.mode_reverse_map = {v: k for k, v in self.mode_map.items()}
-
-        current_rec_mode = self.config.get("recording_mode", "auto")
-        display_rec_val = self.mode_reverse_map.get(current_rec_mode, _t("rec_mode_auto"))
-
-        self.rec_mode_var = ctk.StringVar(value=display_rec_val)
-        self.rec_mode_dropdown = ctk.CTkOptionMenu(
-            scroll_frame, 
-            values=list(self.mode_map.keys()),
-            variable=self.rec_mode_var,
-            width=350,
-            fg_color="#131A26",
-            button_color="#1E293B",
-            button_hover_color="#334155",
-            dropdown_fg_color="#131A26",
-            dropdown_hover_color="#1E293B",
-            dropdown_text_color="#E2E8F0",
-            text_color="#E2E8F0",
-            corner_radius=8
-        )
-        self.rec_mode_dropdown.pack(anchor="w", pady=(5, 20))
-
         # Language Settings
         lbl_lang = ctk.CTkLabel(
             scroll_frame, 
@@ -1123,9 +1087,6 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             self.config["input_device"] = ""
         else:
             self.config["input_device"] = selected_mic
-            
-        selected_rec_mode = self.rec_mode_var.get()
-        self.config["recording_mode"] = self.mode_map.get(selected_rec_mode, "auto")
         
         # Save custom prompts
         self.config["prompt_ai"] = self.prompt_ai_text.get("1.0", "end-1c").strip()
