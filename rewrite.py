@@ -2,6 +2,27 @@ import requests
 import json
 import sys
 
+def clean_llm_output(output_str):
+    """Strips unnecessary markdown wrappers and quotes from LLM responses."""
+    if not output_str:
+        return ""
+    text = output_str.strip()
+    
+    # Strip markdown code blocks if the entire response is wrapped in them
+    if text.startswith("```") and text.endswith("```"):
+        lines = text.splitlines()
+        if len(lines) >= 2:
+            # Remove first and last lines (e.g. ```python ... ```)
+            text = "\n".join(lines[1:-1]).strip()
+
+    # Strip surrounding quotes if wrapped
+    if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+        if len(text) >= 2:
+            text = text[1:-1].strip()
+
+    return text
+
+
 class RewriteEngine:
     def __init__(self, config, session=None):
         self.config = config
@@ -61,19 +82,18 @@ class RewriteEngine:
         
         # Decide whether to rewrite locally or in the cloud
         if self.config.get("rewrite_locally", False):
-            return self._ollama_rewrite(query_text, system_prompt)
-        
-        # If cloud rewrite is selected, try using Groq or Gemini depending on engine/presence of key
-        # If gemini is the selected engine, default to Gemini for rewrite, otherwise default to Groq.
-        if self.config.get("selected_engine") == "gemini_cloud" and self.config.get("gemini_api_key"):
-            return self._gemini_rewrite(query_text, system_prompt)
+            result = self._ollama_rewrite(query_text, system_prompt)
+        elif self.config.get("selected_engine") == "gemini_cloud" and self.config.get("gemini_api_key"):
+            result = self._gemini_rewrite(query_text, system_prompt)
         elif self.config.get("groq_api_key"):
-            return self._groq_rewrite(query_text, system_prompt)
+            result = self._groq_rewrite(query_text, system_prompt)
         elif self.config.get("gemini_api_key"):
-            return self._gemini_rewrite(query_text, system_prompt)
+            result = self._gemini_rewrite(query_text, system_prompt)
         else:
             print("No API key available for rewriting. Returning raw text.", file=sys.stderr)
-            return text
+            result = text
+
+        return clean_llm_output(result)
 
     def _groq_rewrite(self, text, system_prompt):
         url = "https://api.groq.com/openai/v1/chat/completions"
@@ -82,7 +102,6 @@ class RewriteEngine:
             "Content-Type": "application/json"
         }
         model = self.config.get("groq_model", "llama-3.1-8b-instant")
-        print(f"Rewriting via Groq using model: {model}")
         payload = {
             "model": model,
             "messages": [
@@ -93,7 +112,7 @@ class RewriteEngine:
         }
         try:
             post_func = self.session.post if self.session else requests.post
-            r = post_func(url, headers=headers, json=payload, timeout=8)
+            r = post_func(url, headers=headers, json=payload, timeout=12)
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"].strip()
             else:
@@ -104,7 +123,6 @@ class RewriteEngine:
 
     def _gemini_rewrite(self, text, system_prompt):
         model = self.config.get("gemini_model", "gemini-1.5-flash")
-        print(f"Rewriting via Gemini using model: {model}")
         api_key = self.config.get("gemini_api_key")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         
@@ -128,7 +146,7 @@ class RewriteEngine:
         try:
             headers = {"Content-Type": "application/json"}
             post_func = self.session.post if self.session else requests.post
-            r = post_func(url, headers=headers, json=payload, timeout=8)
+            r = post_func(url, headers=headers, json=payload, timeout=12)
             if r.status_code == 200:
                 res_data = r.json()
                 return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -142,7 +160,6 @@ class RewriteEngine:
         base_url = self.config.get("ollama_api_url", "http://localhost:11434").rstrip("/")
         url = f"{base_url}/api/generate"
         model = self.config.get("local_llm_model", "llama3")
-        print(f"Rewriting locally via Ollama using model: {model}")
         payload = {
             "model": model,
             "prompt": f"System instruction: {system_prompt}\n\nUser text to rewrite: {text}",
@@ -156,5 +173,5 @@ class RewriteEngine:
             else:
                 print(f"Ollama API error ({r.status_code}): {r.text}", file=sys.stderr)
         except Exception as e:
-            print(f"Ollama rewrite request failed (is Ollama running?): {e}", file=sys.stderr)
+            print(f"Ollama rewrite request failed: {e}", file=sys.stderr)
         return text

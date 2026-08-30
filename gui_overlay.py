@@ -3,27 +3,28 @@ import sys
 import time
 import threading
 import math
-import random
 import tkinter as tk
 import customtkinter as ctk
 
-from audio_capture import get_pressed_keys, AudioRecorder
+from audio_capture import AudioRecorder
 from dictionary import CustomDictionary
 from rewrite import RewriteEngine
 from output import ClipboardPaster
+from system_compat import PlatformCompat
+from main import create_resilient_session, prewarm_connection, transcribe_gemini, transcribe_groq, transcribe_local_whisper
 from i18n import _t
 
-# Resolve files relative to this script's directory for portability
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Sane placement defaults
-WINDOW_WIDTH = 420
-WINDOW_HEIGHT = 65
-CAPSULE_BG = "#161618"      # Deep obsidian
-TEXT_COLOR = "#f3f3f3"      # Off-white
-ACCENT_RED = "#ff3b30"      # iOS style alert red
-ACCENT_BLUE = "#007aff"     # iOS style clean blue
-ACCENT_GREEN = "#34c759"    # iOS style success green
+WINDOW_WIDTH = 430
+WINDOW_HEIGHT = 68
+CAPSULE_BG = "#161618"
+TEXT_COLOR = "#f3f3f3"
+ACCENT_RED = "#ff3b30"
+ACCENT_BLUE = "#007aff"
+ACCENT_GREEN = "#34c759"
+ACCENT_PURPLE = "#8e44ad"
+ACCENT_ORANGE = "#e67e22"
 
 class RecordingOverlay(ctk.CTk):
     def __init__(self, mode="direct", config=None, run_pipeline_callback=None, persistent=False):
@@ -35,46 +36,50 @@ class RecordingOverlay(ctk.CTk):
         self.config = config or {}
         self.run_pipeline_callback = run_pipeline_callback
         
-        # Configure window settings
-        self.title("Speech2AI2Text Overlay")
-        self.attributes("-topmost", True)  # Always on top
-        self.attributes("-alpha", 0.94)    # Semi-transparent glassmorphic look
+        # Configure window properties
+        self.title("Speech2AI Overlay")
+        self.attributes("-topmost", True)
+        self.attributes("-alpha", 0.95)
         self.configure(fg_color=CAPSULE_BG)
         
-        # Use splash window type to remove titlebar and borders safely on X11/Cinnamon
-        self.attributes("-type", "splash")
+        # Frameless splash style
+        if not PlatformCompat.is_wayland():
+            try:
+                self.attributes("-type", "splash")
+            except Exception:
+                self.overrideredirect(True)
+        else:
+            self.overrideredirect(True)
         
-        # Center in bottom portion of screen
+        # Center at top/bottom of screen
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width - WINDOW_WIDTH) // 2
-        y = screen_height - WINDOW_HEIGHT - 85  # Floats nicely above the bottom panel
+        y = screen_height - WINDOW_HEIGHT - 85
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{x}+{y}")
         
-        # App state
-        # "recording", "processing", "success", "error"
         self.app_state = "recording"
         self.status_text = _t("state_recording")
         
-        # Visualizer animation states
         self.num_bars = 9
         self.bar_heights = [4.0] * self.num_bars
         self.max_bar_height = 25
         
         self.create_widgets()
-        
-        # Start visualization loop
+        self.bind_events()
         self.update_visuals()
 
+    def bind_events(self):
+        """Binds keyboard controls for instant user cancellation/stopping."""
+        self.bind("<Escape>", lambda e: self.cancel_recording())
+        self.bind("<space>", lambda e: self.stop_recording())
+        self.bind("<Return>", lambda e: self.stop_recording())
+
     def destroy(self):
-        """Forces clean termination of the process when the window is destroyed
-        unless running in persistent mode, in which case it is hidden.
-        """
         self.is_destroyed = True
         if self.persistent:
             self.withdraw()
         else:
-            import os
             os._exit(0)
 
     def update_mode(self, mode):
@@ -84,10 +89,10 @@ class RecordingOverlay(ctk.CTk):
             badge_color = ACCENT_BLUE
         elif self.mode == "AI":
             display_mode = _t("badge_ai")
-            badge_color = "#8e44ad"
+            badge_color = ACCENT_PURPLE
         else:
             display_mode = _t("badge_prompt")
-            badge_color = "#e67e22"
+            badge_color = ACCENT_ORANGE
             
         self.badge_frame.configure(fg_color=badge_color)
         self.badge_label.configure(text=display_mode)
@@ -98,37 +103,27 @@ class RecordingOverlay(ctk.CTk):
         self.status_text = _t("state_recording")
         self.status_label.configure(text=self.status_text)
         
-        # Center in bottom portion of screen
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
         x = (screen_width - WINDOW_WIDTH) // 2
         y = screen_height - WINDOW_HEIGHT - 85
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{x}+{y}")
         
-        # Reset border and LED colors
         self.capsule.configure(border_color="#2c2c2e")
         self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_RED)
-        
-        # Reset visualizer heights
         self.bar_heights = [4.0] * self.num_bars
         
-        # Update mode badge
         self.update_mode(mode)
+        AudioRecorder.reset_events()
         
-        # Reset stop requested
-        AudioRecorder.stop_requested = False
-        
-        # Deiconify (show window)
         self.deiconify()
         self.lift()
         self.attributes("-topmost", True)
         
-        # Restart flashing LED
         self.led_flash_state = True
         self.flash_led()
 
     def create_widgets(self):
-        # Outer capsule container frame
         self.capsule = ctk.CTkFrame(
             self, 
             width=WINDOW_WIDTH, 
@@ -141,7 +136,7 @@ class RecordingOverlay(ctk.CTk):
         self.capsule.pack(fill="both", expand=True)
         self.capsule.pack_propagate(False)
         
-        # 1. State indicator LED (flashing red circle)
+        # 1. State indicator LED
         self.led_canvas = tk.Canvas(self.capsule, width=20, height=20, bg=CAPSULE_BG, highlightthickness=0)
         self.led_canvas.pack(side="left", padx=(20, 10))
         self.led_circle = self.led_canvas.create_oval(3, 3, 17, 17, fill=ACCENT_RED, outline="")
@@ -157,16 +152,16 @@ class RecordingOverlay(ctk.CTk):
         )
         self.status_label.pack(side="left", padx=10)
 
-        # 3. Mode Badge (DIRECT, AI or AI_PROMPT)
+        # 3. Mode Badge
         if self.mode == "DIRECT":
             display_mode = _t("badge_direct")
             badge_color = ACCENT_BLUE
         elif self.mode == "AI":
             display_mode = _t("badge_ai")
-            badge_color = "#8e44ad"
+            badge_color = ACCENT_PURPLE
         else:
             display_mode = _t("badge_prompt")
-            badge_color = "#e67e22" # Premium orange/gold
+            badge_color = ACCENT_ORANGE
             
         self.badge_frame = ctk.CTkFrame(
             self.capsule, 
@@ -186,122 +181,109 @@ class RecordingOverlay(ctk.CTk):
         )
         self.badge_label.pack()
 
-        # 4. Waveform Canvas visualizer (sits in the middle)
+        # 4. Waveform Canvas
         self.wave_canvas = tk.Canvas(self.capsule, width=90, height=35, bg=CAPSULE_BG, highlightthickness=0)
         self.wave_canvas.pack(side="right", padx=10)
         
-        # Bind click to stop recording on all widgets
+        # Click to stop on all components
         for widget in [self.capsule, self.status_label, self.led_canvas, self.wave_canvas, self.badge_frame, self.badge_label]:
             widget.bind("<Button-1>", lambda e: self.stop_recording())
 
     def flash_led(self):
-        """Flashes the LED to indicate active recording state."""
         if getattr(self, "is_destroyed", False):
             return
         if self.app_state == "recording":
-            color = ACCENT_RED if self.led_flash_state else "#6b1814"
-            self.led_canvas.itemconfig(self.led_circle, fill=color)
             self.led_flash_state = not self.led_flash_state
-            self.after(500, self.flash_led)
-        elif self.app_state == "processing":
-            # Yellow-orange color pulsing
-            pulsing = int(127 + 127 * math.sin(time.time() * 6))
-            color = f"#{pulsing:02x}{pulsing*7//10:02x}00"
-            self.led_canvas.itemconfig(self.led_circle, fill=color)
-            self.after(100, self.flash_led)
-        elif self.app_state == "success":
-            self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_GREEN)
-        elif self.app_state == "error":
-            self.led_canvas.itemconfig(self.led_circle, fill="#888888")
+            color = ACCENT_RED if self.led_flash_state else "#5c1b18"
+            try:
+                self.led_canvas.itemconfig(self.led_circle, fill=color)
+                self.after(350, self.flash_led)
+            except Exception:
+                pass
 
-    def set_state(self, state, status_text=None):
-        """Sets the state of the overlay (e.g. processing, success) and updates text/animations."""
+    def set_state(self, state, text=None):
+        if getattr(self, "is_destroyed", False):
+            return
         self.app_state = state
-        if status_text:
-            self.status_text = status_text
-            self.status_label.configure(text=status_text)
+        if text:
+            self.status_text = text
+            self.status_label.configure(text=text)
             
         if state == "processing":
-            self.led_flash_state = True
-            self.flash_led()
+            self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_BLUE)
+            self.capsule.configure(border_color=ACCENT_BLUE)
         elif state == "success":
             self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_GREEN)
-            self.capsule.configure(border_color="#1c5427") # Green border
+            self.capsule.configure(border_color=ACCENT_GREEN)
         elif state == "error":
             self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_RED)
-            self.capsule.configure(border_color="#631414") # Dark red border
-            
+            self.capsule.configure(border_color=ACCENT_RED)
+
     def stop_recording(self):
-        """Signals the background recording thread to stop recording immediately."""
+        """Stops active recording gracefully."""
         if self.app_state == "recording":
-            AudioRecorder.stop_requested = True
+            AudioRecorder.request_stop()
+
+    def cancel_recording(self):
+        """Cancels active recording without processing."""
+        if self.app_state == "recording":
+            AudioRecorder.request_cancel()
+            self.set_state("error", _t("state_canceled"))
 
     def draw_waveform(self):
+        if getattr(self, "is_destroyed", False):
+            return
         try:
-            if getattr(self, "is_destroyed", False) or not self.winfo_exists():
-                return
             self.wave_canvas.delete("all")
+            width = 90
+            height = 35
+            center_y = height / 2.0
             
-            canvas_width = 90
-            canvas_height = 35
-            center_y = canvas_height / 2
-            
-            spacing = 7
             bar_width = 3.5
+            gap = 5.5
+            start_x = (width - (self.num_bars * (bar_width + gap) - gap)) / 2.0
             
-            start_x = (canvas_width - (self.num_bars * spacing)) / 2
-            
-            for i in range(self.num_bars):
-                h = self.bar_heights[i]
-                x = start_x + (i * spacing) + (bar_width / 2)
+            for i, h in enumerate(self.bar_heights):
+                x = start_x + i * (bar_width + gap)
+                y0 = center_y - h / 2.0
+                y1 = center_y + h / 2.0
                 
-                # Sane bounds check
-                h = max(2.0, min(self.max_bar_height, h))
-                
-                # Draw rounded caps bar
-                color = ACCENT_RED if self.app_state == "recording" else (ACCENT_BLUE if self.app_state == "processing" else ACCENT_GREEN)
-                self.wave_canvas.create_line(
-                    x, center_y - h/2,
-                    x, center_y + h/2,
-                    fill=color,
-                    width=bar_width,
-                    capstyle="round"
-                )
+                if self.app_state == "recording":
+                    fill_color = ACCENT_RED
+                elif self.app_state == "processing":
+                    fill_color = ACCENT_BLUE
+                elif self.app_state == "success":
+                    fill_color = ACCENT_GREEN
+                else:
+                    fill_color = "#555558"
+                    
+                self.wave_canvas.create_line(x, y0, x, y1, width=bar_width, fill=fill_color, capstyle=tk.ROUND)
         except Exception:
             pass
 
     def update_visuals(self):
-        """Updates the visualizer height array every 40ms."""
+        if getattr(self, "is_destroyed", False):
+            return
         try:
-            if getattr(self, "is_destroyed", False) or not self.winfo_exists():
-                return
-            t = time.time()
-            
             if self.app_state == "recording":
-                # 1. Real-time microphone RMS volume animation
                 vol = AudioRecorder.current_volume
+                target_height = 4.0 + vol * self.max_bar_height
+                
                 for i in range(self.num_bars):
-                    # Introduce random variation to simulate a organic frequency spectrum
-                    noise = random.uniform(-0.15, 0.15)
-                    factor = max(0.05, min(1.0, (vol + noise)))
+                    dist_from_center = abs(i - (self.num_bars // 2))
+                    decay = max(0.2, 1.0 - (dist_from_center * 0.22))
+                    bar_target = target_height * decay
                     
-                    # Weight middle bars to be taller (bell curve)
-                    center_bias = 1.0 - (abs(i - (self.num_bars-1)/2) / ((self.num_bars-1)/2))
-                    target = factor * self.max_bar_height * (0.3 + 0.7 * center_bias)
-                    
-                    # Exponential smoothing filter
-                    self.bar_heights[i] = self.bar_heights[i] * 0.35 + target * 0.65
+                    self.bar_heights[i] = self.bar_heights[i] * 0.4 + bar_target * 0.6
+                    self.bar_heights[i] = max(4.0, min(self.max_bar_height, self.bar_heights[i]))
                     
             elif self.app_state == "processing":
-                # 2. Sine-wave idle processing animation
-                speed = 10
+                t = time.time() * 8.0
                 for i in range(self.num_bars):
-                    # Create rolling sine wave
-                    target = (math.sin(t * speed + i * 0.8) + 1.0) / 2.0 * (self.max_bar_height * 0.7)
+                    target = (math.sin(t + i * 0.7) + 1.0) / 2.0 * (self.max_bar_height * 0.7)
                     self.bar_heights[i] = self.bar_heights[i] * 0.4 + target * 0.6
                     
             elif self.app_state in ("success", "error"):
-                # 3. Flatten out the wave
                 for i in range(self.num_bars):
                     self.bar_heights[i] = self.bar_heights[i] * 0.7 + 2.0 * 0.3
     
@@ -310,22 +292,21 @@ class RecordingOverlay(ctk.CTk):
         except Exception:
             pass
 
+
 def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_keys=None, session=None):
     """Initializes and runs the GUI capsule overlay alongside the dictation pipeline."""
-    # 1. Capture selected text first (before anything else to avoid losing focus/context)
+    if session is None:
+        session = create_resilient_session()
+
+    # 1. Capture selected text immediately with 0ms artificial sleep
     selected_text = ""
     if mode != "direct":
-        from output import ClipboardPaster
-        selected_text = ClipboardPaster.get_selected_text()
+        selected_text = PlatformCompat.get_selected_text()
         if selected_text:
             print(f"Captured active selection: {len(selected_text)} chars")
 
-    # 2. Detect shortcut keys initially pressed on launch on the main thread
     if initial_keys is None:
-        initial_keys = get_pressed_keys()
-        if not initial_keys:
-            time.sleep(0.05)
-            initial_keys = get_pressed_keys()
+        initial_keys = PlatformCompat.get_pressed_keys()
             
     is_warm_start = (overlay is not None)
     if overlay is None:
@@ -333,13 +314,11 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
     else:
         overlay.show(mode, initial_keys)
         
-    # We define the background runner inside a thread so Tkinter mainloop can remain active on main thread
     def thread_target():
-        # TEMP files paths
         TEMP_WAV_PATH = "/tmp/speech2ai2text_dictation.wav"
         VOCAB_PATH = os.path.join(SCRIPT_DIR, "vocabulary.json")
-        
         LOCK_FILE = "/tmp/speech2ai2text_active.lock"
+        
         try:
             with open(LOCK_FILE, "w") as f:
                 f.write(mode)
@@ -347,6 +326,9 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
             pass
             
         try:
+            # Parallel TLS pre-warm while user speaks
+            prewarm_connection(config, session)
+
             # 1. Recording Phase
             recorder = AudioRecorder(device_name=config.get("input_device"))
             audio_file = recorder.record(
@@ -354,15 +336,15 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
                 output_path=TEMP_WAV_PATH, 
                 enable_beeps=config.get("enable_beeps", True),
                 beep_volume=config.get("beep_volume", 0.2),
-                initial_keys=initial_keys
+                initial_keys=initial_keys,
+                mode_preference=config.get("recording_mode", "auto")
             )
             
-            # Transition to processing state
             overlay.set_state("processing", _t("state_processing"))
             
             if not audio_file or not os.path.exists(audio_file):
                 overlay.set_state("error", _t("state_canceled"))
-                time.sleep(1.0)
+                time.sleep(0.8)
                 if overlay.persistent:
                     overlay.after(0, overlay.withdraw)
                 else:
@@ -370,8 +352,6 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
                 return
                 
             # 2. Transcription Phase
-            from main import transcribe_gemini, transcribe_groq, transcribe_local_whisper
-            
             engine = config.get("selected_engine", "gemini_cloud")
             if engine == "gemini_cloud":
                 raw_text = transcribe_gemini(audio_file, config, session=session)
@@ -384,14 +364,14 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
                 
             if not raw_text.strip():
                 overlay.set_state("error", _t("state_nothing_heard"))
-                time.sleep(1.2)
+                time.sleep(1.0)
                 if overlay.persistent:
                     overlay.after(0, overlay.withdraw)
                 else:
                     overlay.after(0, overlay.destroy)
                 return
                 
-            # 3. Clean-up & Custom Dictionary
+            # 3. Custom Dictionary
             dictionary = CustomDictionary(filepath=VOCAB_PATH)
             clean_text = dictionary.clean_text(raw_text)
             
@@ -407,75 +387,34 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
                 
             # 5. Paste & Success State
             overlay.set_state("success", _t("state_inserting"))
-            paster = ClipboardPaster()
-            paster.paste(clean_text)
-            
-            time.sleep(0.5)
+            ClipboardPaster.paste(clean_text)
+            time.sleep(0.4)
             
         except Exception as e:
             error_str = str(e)
             print(f"Error in overlay pipeline: {error_str}", file=sys.stderr)
             overlay.set_state("error", _t("state_error"))
-            time.sleep(2.0)
+            time.sleep(1.5)
         finally:
-            # Active lock file cleanup
             try:
                 if os.path.exists(LOCK_FILE):
                     os.remove(LOCK_FILE)
             except Exception:
                 pass
                 
-            # Key-repeat suppression wait
-            if initial_keys:
-                display = None
-                try:
-                    if os.environ.get("XDG_SESSION_TYPE", "").lower() != "wayland":
-                        import ctypes
-                        try:
-                            x11 = ctypes.CDLL('libX11.so.6')
-                            x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
-                            x11.XOpenDisplay.restype = ctypes.c_void_p
-                            display = x11.XOpenDisplay(None)
-                        except Exception:
-                            pass
-                            
-                    while True:
-                        curr = get_pressed_keys(display=display)
-                        if curr is None:
-                            break
-                        still_down = initial_keys & curr
-                        if not still_down:
-                            break
-                        time.sleep(0.05)
-                finally:
-                    if display:
-                        try:
-                            x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
-                            x11.XCloseDisplay.restype = ctypes.c_int
-                            x11.XCloseDisplay(display)
-                        except Exception:
-                            pass
-                    
-            # Fade-out window exit / hide
             if overlay.persistent:
                 overlay.after(0, overlay.withdraw)
             else:
                 overlay.after(0, overlay.destroy)
 
-    # Start pipeline thread
     pipeline_thread = threading.Thread(target=thread_target, daemon=True)
     pipeline_thread.start()
     
-    # Only run mainloop on main thread if not a warm start (daemon already has mainloop)
     if not is_warm_start:
         overlay.mainloop()
 
 if __name__ == "__main__":
-    os.chdir(SCRIPT_DIR)
-    
-    # Load config and run demo mode directly from terminal
     from main import load_config
     cfg = load_config()
-    
     run_mode = sys.argv[1] if len(sys.argv) > 1 else "direct"
     start_overlay_pipeline(mode=run_mode, config=cfg)
