@@ -17,15 +17,15 @@ from i18n import _t
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Sane placement defaults
-WINDOW_WIDTH = 420
-WINDOW_HEIGHT = 65
+WINDOW_WIDTH = 460
+WINDOW_HEIGHT = 68
 CAPSULE_BG = "#0B0F19"      # Deep slate obsidian (Linear/Raycast style)
 TEXT_COLOR = "#F8FAFC"      # Clean high-contrast off-white
 ACCENT_RED = "#F43F5E"      # Vibrant rose-red
-ACCENT_BLUE = "#38BDF8"     # Sky cyan
+ACCENT_BLUE = "#38BDF8"     # Sky cyan (Diktat)
 ACCENT_GREEN = "#10B981"    # Emerald success green
-ACCENT_PURPLE = "#8B5CF6"   # Violet
-ACCENT_AMBER = "#F59E0B"    # Amber gold
+ACCENT_PURPLE = "#8B5CF6"   # Violet (AI-Omskriver)
+ACCENT_AMBER = "#F59E0B"    # Amber gold (Teknisk Prompt)
 
 class RecordingOverlay(ctk.CTk):
     def __init__(self, mode="direct", config=None, run_pipeline_callback=None, persistent=False):
@@ -84,20 +84,26 @@ class RecordingOverlay(ctk.CTk):
         if self.mode == "DIRECT":
             display_mode = _t("badge_direct")
             badge_color = ACCENT_BLUE
+            self.mode_status_recording = _t("state_rec_direct")
         elif self.mode == "AI":
             display_mode = _t("badge_ai")
             badge_color = ACCENT_PURPLE
+            self.mode_status_recording = _t("state_rec_ai")
         else:
             display_mode = _t("badge_prompt")
             badge_color = ACCENT_AMBER
+            self.mode_status_recording = _t("state_rec_prompt")
             
         self.badge_frame.configure(fg_color=badge_color)
         self.badge_label.configure(text=display_mode)
+        if hasattr(self, "capsule"):
+            self.capsule.configure(border_color=badge_color)
 
     def show(self, mode, initial_keys=None):
         self.is_destroyed = False
         self.app_state = "recording"
-        self.status_text = _t("state_recording")
+        self.update_mode(mode)
+        self.status_text = getattr(self, "mode_status_recording", _t("state_recording"))
         self.status_label.configure(text=self.status_text)
         
         # Center in bottom portion of screen
@@ -107,15 +113,11 @@ class RecordingOverlay(ctk.CTk):
         y = screen_height - WINDOW_HEIGHT - 85
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{x}+{y}")
         
-        # Reset border and LED colors
-        self.capsule.configure(border_color="#2c2c2e")
+        # Reset LED colors
         self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_RED)
         
         # Reset visualizer heights
         self.bar_heights = [4.0] * self.num_bars
-        
-        # Update mode badge
-        self.update_mode(mode)
         
         # Reset stop requested
         AudioRecorder.stop_requested = False
@@ -182,9 +184,9 @@ class RecordingOverlay(ctk.CTk):
             self.badge_frame, 
             text=display_mode, 
             text_color="#ffffff",
-            font=ctk.CTkFont(size=10, weight="bold"),
-            padx=8,
-            pady=2
+            font=ctk.CTkFont(size=11, weight="bold"),
+            padx=10,
+            pady=3
         )
         self.badge_label.pack()
 
@@ -410,13 +412,13 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
             
             # 4. Rewrite (AI mode)
             if mode == "ai":
-                overlay.set_state("processing", _t("state_rewriting"))
+                overlay.set_state("processing", _t("state_rewriting_ai"))
                 log_info(f"Rewriting transcription with AI (style: clean_transcription, selected_text: {len(selected_text)} chars)")
                 rewriter = RewriteEngine(config, session=session)
                 clean_text = rewriter.process(clean_text, style="clean_transcription", selected_text=selected_text)
                 log_info(f"AI Rewrite completed: '{clean_text}'")
             elif mode == "ai_prompt":
-                overlay.set_state("processing", _t("state_rewriting"))
+                overlay.set_state("processing", _t("state_rewriting_prompt"))
                 log_info(f"Rewriting transcription with AI (style: cursor_prompt, selected_text: {len(selected_text)} chars)")
                 rewriter = RewriteEngine(config, session=session)
                 clean_text = rewriter.process(clean_text, style="cursor_prompt", selected_text=selected_text)
