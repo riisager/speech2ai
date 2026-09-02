@@ -86,40 +86,6 @@ def get_pressed_keys(display=None):
     except Exception:
         return None
 
-class AudioRecorder:
-    current_volume = 0.0
-    stop_requested = False
-
-    @staticmethod
-    def get_device_index_by_name(name):
-        if not name:
-            return None
-        import sounddevice as sd
-        try:
-            devices = sd.query_devices()
-            for i, dev in enumerate(devices):
-                if dev['name'] == name and dev['max_input_channels'] > 0:
-                    return i
-            for i, dev in enumerate(devices):
-                if name in dev['name'] and dev['max_input_channels'] > 0:
-                    return i
-        except Exception:
-            pass
-        return None
-
-    def __init__(self, sample_rate=16000, channels=1, device_name=None):
-        self.sample_rate = sample_rate
-        self.channels = channels
-        self.capture_rate = 48000
-        self.capture_channels = 2
-        self.device_index = self.get_device_index_by_name(device_name)
-
-    def play_beep(self, frequency=550, duration=0.08, volume=0.15):
-        """Backwards-compatible helper that delegates to play_audio_cue."""
-        cue = "start" if frequency > 500 else "stop"
-        play_audio_cue(cue, volume=volume, sample_rate=self.capture_rate)
-
-
 def play_audio_cue(cue="start", volume=0.2, sample_rate=48000):
     """Plays a synthesized, click-free acoustic cue with smooth Hann window envelopes."""
     import numpy as np
@@ -168,6 +134,39 @@ def play_audio_cue(cue="start", volume=0.2, sample_rate=48000):
             pass
 
     threading.Thread(target=_synthesize, daemon=True).start()
+
+class AudioRecorder:
+    current_volume = 0.0
+    stop_requested = False
+
+    @staticmethod
+    def get_device_index_by_name(name):
+        if not name:
+            return None
+        import sounddevice as sd
+        try:
+            devices = sd.query_devices()
+            for i, dev in enumerate(devices):
+                if dev['name'] == name and dev['max_input_channels'] > 0:
+                    return i
+            for i, dev in enumerate(devices):
+                if name in dev['name'] and dev['max_input_channels'] > 0:
+                    return i
+        except Exception:
+            pass
+        return None
+
+    def __init__(self, sample_rate=16000, channels=1, device_name=None):
+        self.sample_rate = sample_rate
+        self.channels = channels
+        self.capture_rate = 48000
+        self.capture_channels = 2
+        self.device_index = self.get_device_index_by_name(device_name)
+
+    def play_beep(self, frequency=550, duration=0.08, volume=0.15):
+        """Backwards-compatible helper that delegates to play_audio_cue."""
+        cue = "start" if frequency > 500 else "stop"
+        play_audio_cue(cue, volume=volume, sample_rate=self.capture_rate)
 
     def record(self, max_duration=30, output_path="/tmp/dictation.wav", enable_beeps=True, beep_volume=0.2, initial_keys=None):
         """Records audio from the microphone. Stops when shortcut keys are released or max_duration is met."""
