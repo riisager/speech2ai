@@ -143,34 +143,32 @@ class AudioRecorder:
                 except Exception:
                     pass
 
+            from logger import log_info, log_error, log_debug
+            log_info(f"Audio recording initialized. Device: {self.device_index}, SampleRate: {self.sample_rate}")
+            
             # 1. Detect shortcut keys initially pressed on launch if not passed
             if initial_keys is None:
                 initial_keys = get_pressed_keys(display=display)
-                
-                # Let's wait a tiny bit to make sure we catch keys if there's latency
                 if not initial_keys:
                     time.sleep(0.05)
                     initial_keys = get_pressed_keys(display=display)
                 
             use_key_release = False
             if initial_keys:
-                # We only monitor keys that are actually pressed.
-                # Usually includes modifier keys (Super/Ctrl) and the trigger key.
-                print(f"Detected shortcut keycodes: {initial_keys}")
+                log_info(f"Detected held shortcut keycodes: {initial_keys} (hold-to-talk mode active)")
                 use_key_release = True
             else:
-                print("No shortcut keys detected. Will record until max duration or Ctrl+C.")
+                log_info("No shortcut keys held on trigger. Recording until timeout or manual stop.")
     
             # 2. Play start beep
             if enable_beeps:
                 self.play_beep(frequency=650, duration=0.08, volume=beep_volume)
     
-            # Queue to pass audio data from stream callback to recorder thread
             audio_queue = queue.Queue()
     
             def callback(indata, frames, time_info, status):
                 if status:
-                    print(f"Audio stream status warning: {status}", file=sys.stderr)
+                    log_error(f"Audio stream status warning: {status}")
                 audio_queue.put(indata.copy())
                 try:
                     rms = np.sqrt(np.mean(indata.astype(np.float32)**2))
@@ -179,36 +177,31 @@ class AudioRecorder:
                     AudioRecorder.current_volume = 0.0
     
             # 3. Start audio input stream
-            print("Recording started...")
+            log_info("Audio stream open and actively recording...")
             start_time = time.time()
             recorded_chunks = []
             
-            # Set low latency suggestion
             sd.default.latency = 'low'
             
             try:
                 with sd.InputStream(samplerate=self.sample_rate, channels=self.channels, 
                                      device=self.device_index, dtype='int16', callback=callback):
                     
-                    # Minimum duration to avoid instant triggers from key bounce
                     min_duration = 0.3
-                    
                     released_consecutive_count = 0
                     while True:
                         elapsed = time.time() - start_time
                         
-                        # Read all available audio data
                         while not audio_queue.empty():
                             recorded_chunks.append(audio_queue.get())
                             
-                        # Stop conditions
                         if elapsed >= max_duration:
-                            print("Reached maximum duration.")
+                            log_info(f"Recording stopped: Reached maximum duration ({max_duration}s).")
                             break
                             
                         if AudioRecorder.stop_requested:
                             AudioRecorder.stop_requested = False
-                            print("External stop requested via GUI click.")
+                            log_info("Recording stopped: External stop requested via GUI click.")
                             break
                             
                         if os.path.exists('/tmp/speech2ai2text_stop.trigger'):
@@ -216,18 +209,17 @@ class AudioRecorder:
                                 os.remove('/tmp/speech2ai2text_stop.trigger')
                             except Exception:
                                 pass
-                            print("Stop trigger file detected (shortcut double-press).")
+                            log_info("Recording stopped: Stop trigger file intercepted.")
                             break
                             
                         if use_key_release and elapsed >= min_duration:
                             current_keys = get_pressed_keys(display=display)
                             if current_keys is not None:
-                                # If any of the initially pressed keys were released
                                 released = initial_keys - current_keys
                                 if released:
                                     released_consecutive_count += 1
-                                    if released_consecutive_count >= 3: # Must be released for 3 consecutive checks (150ms)
-                                        print(f"Key release detected (keycodes {released}). Stopping.")
+                                    if released_consecutive_count >= 3:
+                                        log_info(f"Recording stopped: Key release detected (released keycodes: {released}) after {elapsed:.2f}s.")
                                         break
                                 else:
                                     released_consecutive_count = 0
@@ -235,8 +227,7 @@ class AudioRecorder:
                         time.sleep(0.05)
                         
             except Exception as e:
-                print(f"Error during audio recording: {e}", file=sys.stderr)
-                # Try to grab remaining queue items
+                log_error(f"Error during audio recording stream: {e}")
                 while not audio_queue.empty():
                     recorded_chunks.append(audio_queue.get())
     
@@ -245,20 +236,23 @@ class AudioRecorder:
                 self.play_beep(frequency=450, duration=0.08, volume=beep_volume)
     
             if not recorded_chunks:
-                print("No audio captured.")
+                log_error("No audio chunks were captured from the stream.")
                 return None
     
             # 4. Save to WAV file
             try:
                 import scipy.io.wavfile as wav
                 recording = np.concatenate(recorded_chunks, axis=0)
-                # Ensure the directory exists
+                dur = len(recording) / self.sample_rate
+                rms = np.sqrt(np.mean(recording.astype(np.float32)**2)) if len(recording) > 0 else 0
+                max_amp = np.max(np.abs(recording)) if len(recording) > 0 else 0
+                
                 os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
                 wav.write(output_path, self.sample_rate, recording)
-                print(f"Saved recording to {output_path} ({len(recording)/self.sample_rate:.2f}s)")
+                log_info(f"Saved audio to {output_path} | Duration: {dur:.2f}s | RMS: {rms:.2f} | MaxPeak: {max_amp}")
                 return output_path
             except Exception as e:
-                print(f"Failed to write wav file: {e}", file=sys.stderr)
+                log_error(f"Failed to write wav file: {e}")
                 return None
         finally:
             if display:

@@ -143,29 +143,38 @@ def transcribe_gemini(audio_path, config, session=None):
         }]
     }
     
+    from logger import log_info, log_error
     headers = {"Content-Type": "application/json"}
     post_func = session.post if session else requests.post
+    log_info(f"Sending audio to Gemini API (model: '{model}', payload size: {len(audio_b64)} chars base64)...")
     r = post_func(url, headers=headers, json=payload, timeout=20)
+    log_info(f"Gemini API responded with status code: {r.status_code}")
     
     if r.status_code == 200:
         res = r.json()
         try:
             candidates = res.get("candidates", [])
             if not candidates:
+                log_info("Gemini response: No candidates in response body.")
                 return ""
             content = candidates[0].get("content", {})
             parts = content.get("parts", [])
             if not parts:
+                log_info(f"Gemini response: Content object has no parts: {content}")
                 return ""
             text = parts[0].get("text", "").strip()
             # Clean up potential leading/trailing markdown wrapper or quotes
             if text.startswith('"') and text.endswith('"'):
                 text = text[1:-1].strip()
+            log_info(f"Gemini parsed text: '{text}'")
             return text
-        except Exception:
+        except Exception as e:
+            log_error("Exception parsing Gemini JSON response", exc=e)
             return ""
     else:
-        raise Exception(f"Gemini API svarede med fejl ({r.status_code}): {r.text}")
+        err_msg = f"Gemini API svarede med fejl ({r.status_code}): {r.text}"
+        log_error(err_msg)
+        raise Exception(err_msg)
 
 def transcribe_groq(audio_path, config, session=None):
     """Transcribes audio using Groq API via requests."""

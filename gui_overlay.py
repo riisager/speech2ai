@@ -346,6 +346,9 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
         except Exception:
             pass
             
+        from logger import log_info, log_error
+        log_info(f"Pipeline started in mode: '{mode}', WarmStart: {is_warm_start}")
+        
         try:
             # 1. Recording Phase
             recorder = AudioRecorder(device_name=config.get("input_device"))
@@ -361,6 +364,7 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
             overlay.set_state("processing", _t("state_processing"))
             
             if not audio_file or not os.path.exists(audio_file):
+                log_info("Pipeline ended: No audio recorded or recording canceled.")
                 overlay.set_state("error", _t("state_canceled"))
                 time.sleep(1.0)
                 if overlay.persistent:
@@ -373,6 +377,9 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
             from main import transcribe_gemini, transcribe_groq, transcribe_local_whisper
             
             engine = config.get("selected_engine", "gemini_cloud")
+            model_name = config.get("gemini_model" if engine == "gemini_cloud" else "groq_model", "")
+            log_info(f"Starting transcription with engine '{engine}' (model: '{model_name}') on file '{audio_file}'")
+            
             if engine == "gemini_cloud":
                 raw_text = transcribe_gemini(audio_file, config, session=session)
             elif engine == "groq_cloud":
@@ -382,7 +389,10 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
             else:
                 raise ValueError(f"Ukendt motor: {engine}")
                 
+            log_info(f"Transcription result: '{raw_text}' (len: {len(raw_text)})")
+            
             if not raw_text.strip():
+                log_info("Transcription returned empty string (no speech detected in audio).")
                 overlay.set_state("error", _t("state_nothing_heard"))
                 time.sleep(1.2)
                 if overlay.persistent:
@@ -398,27 +408,32 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
             # 4. Rewrite (AI mode)
             if mode == "ai":
                 overlay.set_state("processing", _t("state_rewriting"))
+                log_info(f"Rewriting transcription with AI (style: clean_transcription, selected_text: {len(selected_text)} chars)")
                 rewriter = RewriteEngine(config, session=session)
                 clean_text = rewriter.process(clean_text, style="clean_transcription", selected_text=selected_text)
+                log_info(f"AI Rewrite completed: '{clean_text}'")
             elif mode == "ai_prompt":
                 overlay.set_state("processing", _t("state_rewriting"))
+                log_info(f"Rewriting transcription with AI (style: cursor_prompt, selected_text: {len(selected_text)} chars)")
                 rewriter = RewriteEngine(config, session=session)
                 clean_text = rewriter.process(clean_text, style="cursor_prompt", selected_text=selected_text)
+                log_info(f"AI Prompt completed: '{clean_text}'")
                 
             # 5. Paste & Success State
             overlay.set_state("success", _t("state_inserting"))
+            log_info("Pasting final text to active window and clipboard...")
             paster = ClipboardPaster()
             paster.paste(clean_text)
             
             time.sleep(0.5)
+            log_info("Pipeline finished successfully.")
             
         except Exception as e:
             error_str = str(e)
-            print(f"Error in overlay pipeline: {error_str}", file=sys.stderr)
+            log_error("Error in overlay pipeline", exc=e)
             overlay.set_state("error", _t("state_error"))
             time.sleep(2.0)
         finally:
-            # Active lock file cleanup
             try:
                 if os.path.exists(LOCK_FILE):
                     os.remove(LOCK_FILE)

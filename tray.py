@@ -152,13 +152,15 @@ def run_tray():
 
 def start_recording_from_socket(overlay, config, mode, session):
     """Callback triggered on the main thread to run the visual pipeline."""
+    from logger import log_info, log_error
     if os.path.exists(LOCK_FILE):
-        print("Recording is already active. Ignoring socket trigger.")
+        log_info("Recording is already active. Ignoring socket trigger.")
         return
         
     # Query which keys are currently held down for hold-to-record
     from audio_capture import get_pressed_keys
     initial_keys = get_pressed_keys()
+    log_info(f"Trigger received via UNIX socket for mode: '{mode}' | initial_keys: {initial_keys}")
     
     # Reload config dynamically before triggering the run
     fresh_config = load_config()
@@ -172,6 +174,7 @@ def start_recording_from_socket(overlay, config, mode, session):
 
 def run_socket_server(overlay, config, session):
     """UNIX socket server that listens for instant client triggers."""
+    from logger import log_info, log_error
     if os.path.exists(SOCKET_PATH):
         try:
             os.unlink(SOCKET_PATH)
@@ -181,6 +184,7 @@ def run_socket_server(overlay, config, session):
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     server.bind(SOCKET_PATH)
     server.listen(5)
+    log_info(f"UNIX socket server listening on {SOCKET_PATH}")
     
     while True:
         try:
@@ -188,11 +192,12 @@ def run_socket_server(overlay, config, session):
             data = conn.recv(1024)
             if data:
                 mode = data.decode().strip()
+                log_info(f"Socket incoming connection accepted (mode: '{mode}')")
                 # Schedule overlay activation on Tkinter main thread
                 overlay.after(0, lambda m=mode: start_recording_from_socket(overlay, config, m, session))
             conn.close()
         except Exception as e:
-            print(f"Socket server error: {e}", file=sys.stderr)
+            log_error(f"Socket server error: {e}")
             time.sleep(1)
 
 if __name__ == "__main__":
