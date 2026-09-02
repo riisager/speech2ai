@@ -97,9 +97,9 @@ def send_notification(config, title, message, timeout=2000):
         pass
 
 def transcribe_gemini(audio_path, config, session=None):
-    """Transcribes audio using Gemini 1.5/2.0 API via direct HTTPS request."""
+    """Transcribes audio using Gemini API (supports Gemini 1.5/2.0/3.5/Transcribe) via direct HTTPS request."""
     api_key = config.get("gemini_api_key")
-    model = config.get("gemini_model", "gemini-1.5-flash")
+    model = config.get("gemini_model", "gemini-3.5-flash")
     
     if not api_key or "YOUR_" in api_key:
         raise ValueError(_t("missing_key_gemini"))
@@ -112,6 +112,25 @@ def transcribe_gemini(audio_path, config, session=None):
     import base64
     audio_b64 = base64.b64encode(audio_bytes).decode('utf-8')
     
+    # Load custom vocabulary to feed as specialized jargon / context to Gemini Transcribe
+    vocab_context = ""
+    try:
+        vocab_path = os.path.join(SCRIPT_DIR, "vocabulary.json")
+        if os.path.exists(vocab_path):
+            with open(vocab_path, "r", encoding="utf-8") as vf:
+                vocab_data = json.load(vf)
+                if vocab_data:
+                    words = [f"'{spoken}' -> '{written}'" for spoken, written in vocab_data.items()]
+                    vocab_context = " Adhere strictly to this custom vocabulary and specialized jargon when transcribing: " + ", ".join(words) + "."
+    except Exception:
+        pass
+
+    prompt_text = (
+        "Transcribe the spoken audio exactly in its original language (Danish or English). "
+        "Output ONLY the clean transcription text. No formatting, no extra explanation, no quotes, no chatty remarks."
+        + vocab_context
+    )
+    
     payload = {
         "contents": [{
             "parts": [
@@ -119,7 +138,7 @@ def transcribe_gemini(audio_path, config, session=None):
                     "mimeType": "audio/wav",
                     "data": audio_b64
                 }},
-                {"text": "Transcribe the spoken audio exactly in its original language (Danish or English). Output ONLY the clean transcription text. No formatting, no extra explanation, no quotes, no chatty remarks."}
+                {"text": prompt_text}
             ]
         }]
     }
