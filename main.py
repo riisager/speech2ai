@@ -162,7 +162,15 @@ def transcribe_gemini(audio_path, config, session=None):
             if not parts:
                 log_info(f"Gemini response: Content object has no parts: {content}")
                 return ""
-            text = parts[0].get("text", "").strip()
+            first_part = parts[0]
+            if isinstance(first_part, dict):
+                if "audioTranscription" in first_part and isinstance(first_part["audioTranscription"], dict):
+                    text = first_part["audioTranscription"].get("text", "").strip()
+                else:
+                    text = first_part.get("text", "").strip()
+            else:
+                text = str(first_part).strip()
+                
             # Clean up potential leading/trailing markdown wrapper or quotes
             if text.startswith('"') and text.endswith('"'):
                 text = text[1:-1].strip()
