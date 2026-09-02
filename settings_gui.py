@@ -633,7 +633,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             "gemini-flash-latest",
             "gemini-3.5-flash",
             "gemini-3.5-flash-lite",
-            "gemini-3.5-pro"
+            "gemini-pro-latest"
         ]
         saved_rewrite_model = self.config.get("gemini_rewrite_model", "gemini-flash-lite-latest")
         if saved_rewrite_model not in gemini_rewrite_models:

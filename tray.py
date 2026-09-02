@@ -162,7 +162,7 @@ def build_tray_menu(icon_ref=None):
         pystray.MenuItem("gemini-flash-lite-latest (Anbefalet)", set_rewrite("gemini-flash-lite-latest"), checked=lambda item: curr_rewrite == "gemini-flash-lite-latest", radio=True),
         pystray.MenuItem("gemini-flash-latest", set_rewrite("gemini-flash-latest"), checked=lambda item: curr_rewrite == "gemini-flash-latest", radio=True),
         pystray.MenuItem("gemini-3.5-flash", set_rewrite("gemini-3.5-flash"), checked=lambda item: curr_rewrite == "gemini-3.5-flash", radio=True),
-        pystray.MenuItem("gemini-3.5-pro", set_rewrite("gemini-3.5-pro"), checked=lambda item: curr_rewrite == "gemini-3.5-pro", radio=True),
+        pystray.MenuItem("gemini-pro-latest", set_rewrite("gemini-pro-latest"), checked=lambda item: curr_rewrite == "gemini-pro-latest", radio=True),
     )
 
     return pystray.Menu(
