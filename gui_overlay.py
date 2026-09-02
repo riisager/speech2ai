@@ -19,11 +19,13 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Sane placement defaults
 WINDOW_WIDTH = 420
 WINDOW_HEIGHT = 65
-CAPSULE_BG = "#161618"      # Deep obsidian
-TEXT_COLOR = "#f3f3f3"      # Off-white
-ACCENT_RED = "#ff3b30"      # iOS style alert red
-ACCENT_BLUE = "#007aff"     # iOS style clean blue
-ACCENT_GREEN = "#34c759"    # iOS style success green
+CAPSULE_BG = "#0B0F19"      # Deep slate obsidian (Linear/Raycast style)
+TEXT_COLOR = "#F8FAFC"      # Clean high-contrast off-white
+ACCENT_RED = "#F43F5E"      # Vibrant rose-red
+ACCENT_BLUE = "#38BDF8"     # Sky cyan
+ACCENT_GREEN = "#10B981"    # Emerald success green
+ACCENT_PURPLE = "#8B5CF6"   # Violet
+ACCENT_AMBER = "#F59E0B"    # Amber gold
 
 class RecordingOverlay(ctk.CTk):
     def __init__(self, mode="direct", config=None, run_pipeline_callback=None, persistent=False):
@@ -84,10 +86,10 @@ class RecordingOverlay(ctk.CTk):
             badge_color = ACCENT_BLUE
         elif self.mode == "AI":
             display_mode = _t("badge_ai")
-            badge_color = "#8e44ad"
+            badge_color = ACCENT_PURPLE
         else:
             display_mode = _t("badge_prompt")
-            badge_color = "#e67e22"
+            badge_color = ACCENT_AMBER
             
         self.badge_frame.configure(fg_color=badge_color)
         self.badge_label.configure(text=display_mode)
@@ -136,7 +138,7 @@ class RecordingOverlay(ctk.CTk):
             corner_radius=22,
             fg_color=CAPSULE_BG,
             border_width=1.5,
-            border_color="#2c2c2e"
+            border_color="#1E293B"
         )
         self.capsule.pack(fill="both", expand=True)
         self.capsule.pack_propagate(False)
@@ -224,12 +226,13 @@ class RecordingOverlay(ctk.CTk):
         if state == "processing":
             self.led_flash_state = True
             self.flash_led()
+            self.capsule.configure(border_color="#6366F1")
         elif state == "success":
             self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_GREEN)
-            self.capsule.configure(border_color="#1c5427") # Green border
+            self.capsule.configure(border_color="#10B981")
         elif state == "error":
             self.led_canvas.itemconfig(self.led_circle, fill=ACCENT_RED)
-            self.capsule.configure(border_color="#631414") # Dark red border
+            self.capsule.configure(border_color="#F43F5E")
             
     def stop_recording(self):
         """Signals the background recording thread to stop recording immediately."""

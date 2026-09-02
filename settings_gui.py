@@ -56,6 +56,10 @@ class AutoScrollableFrame(ctk.CTkScrollableFrame):
 
 class CollapsibleFrame(ctk.CTkFrame):
     def __init__(self, parent, title="", expanded=False, **kwargs):
+        kwargs.setdefault("fg_color", "#111827")
+        kwargs.setdefault("corner_radius", 10)
+        kwargs.setdefault("border_width", 1)
+        kwargs.setdefault("border_color", "#1E293B")
         super().__init__(parent, **kwargs)
         
         self.title = title
@@ -63,15 +67,15 @@ class CollapsibleFrame(ctk.CTkFrame):
         
         # Header frame for the toggle button
         self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.header_frame.pack(fill="x", padx=5, pady=5)
+        self.header_frame.pack(fill="x", padx=8, pady=6)
         
         self.toggle_btn = ctk.CTkButton(
             self.header_frame, 
-            text="▼ " + self.title if self.expanded else "▶ " + self.title,
+            text="▼  " + self.title if self.expanded else "▶  " + self.title,
             anchor="w",
             fg_color="transparent",
-            hover_color=("#dbdbdb", "#2b2b2b"),
-            text_color=("#000000", "#ffffff"),
+            hover_color="#1E293B",
+            text_color="#F8FAFC",
             font=ctk.CTkFont(size=13, weight="bold"),
             command=self.toggle
         )
@@ -80,16 +84,16 @@ class CollapsibleFrame(ctk.CTkFrame):
         # Content container
         self.content_frame = ctk.CTkFrame(self, fg_color="transparent")
         if self.expanded:
-            self.content_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+            self.content_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
             
     def toggle(self):
         if self.expanded:
             self.content_frame.pack_forget()
-            self.toggle_btn.configure(text="▶ " + self.title)
+            self.toggle_btn.configure(text="▶  " + self.title)
             self.expanded = False
         else:
-            self.content_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-            self.toggle_btn.configure(text="▼ " + self.title)
+            self.content_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+            self.toggle_btn.configure(text="▼  " + self.title)
             self.expanded = True
 
 class ModelInstallProgressWindow(ctk.CTkToplevel):
@@ -264,8 +268,8 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.configure(fg_color="#090D16")
         
         self.title(_t("window_title"))
-        self.geometry("800x700")
-        self.minsize(700, 600)
+        self.geometry("860x740")
+        self.minsize(750, 620)
         self.resizable(True, True)
         
         # Load data
@@ -277,7 +281,8 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             "local_model_path": "",
             "groq_api_key": "",
             "gemini_api_key": "",
-            "gemini_model": "gemini-3.5-flash",
+            "gemini_model": "gemini-3.5-transcribe",
+            "gemini_rewrite_model": "gemini-3.5-flash",
             "enable_notifications": True,
             "enable_beeps": True,
             "beep_volume": 0.2,
@@ -317,19 +322,188 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             print(f"Error saving file {path}: {e}")
             return False
 
+    def open_log_window(self):
+        """Displays a clean real-time log viewer window for /tmp/speech2ai.log."""
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Speech2AI - Live Log (/tmp/speech2ai.log)")
+        dialog.geometry("720x500")
+        dialog.transient(self)
+        dialog.configure(fg_color="#090D16")
+        
+        header = ctk.CTkFrame(dialog, fg_color="#0F172A", height=50, corner_radius=0)
+        header.pack(fill="x", side="top")
+        header.pack_propagate(False)
+        
+        lbl_title = ctk.CTkLabel(
+            header, 
+            text="📋 Realtids-Log (/tmp/speech2ai.log)", 
+            font=ctk.CTkFont(size=14, weight="bold"), 
+            text_color="#F8FAFC"
+        )
+        lbl_title.pack(side="left", padx=15)
+        
+        def reload_log():
+            log_box.configure(state="normal")
+            log_box.delete("1.0", "end")
+            if os.path.exists("/tmp/speech2ai.log"):
+                try:
+                    with open("/tmp/speech2ai.log", "r", encoding="utf-8") as f:
+                        lines = f.readlines()
+                        log_box.insert("1.0", "".join(lines[-200:]))
+                except Exception as e:
+                    log_box.insert("1.0", f"Kunne ikke læse logfil: {e}")
+            else:
+                log_box.insert("1.0", "Ingen logposter fundet endnu.")
+            log_box.see("end")
+            log_box.configure(state="disabled")
+            
+        btn_refresh = ctk.CTkButton(
+            header, 
+            text="🔄 Opdater", 
+            width=90, 
+            height=30, 
+            corner_radius=6,
+            fg_color="#1E293B", 
+            hover_color="#334155", 
+            command=reload_log
+        )
+        btn_refresh.pack(side="right", padx=15)
+        
+        log_box = ctk.CTkTextbox(
+            dialog, 
+            font=ctk.CTkFont(family="monospace", size=11), 
+            fg_color="#0B0F19", 
+            text_color="#38BDF8", 
+            border_width=1, 
+            border_color="#1E293B"
+        )
+        log_box.pack(fill="both", expand=True, padx=15, pady=15)
+        reload_log()
+
     def create_widgets(self):
-        # Create Tabview - styled with Slate background and Indigo accents
+        # 1. Top Brand Header Bar
+        header_frame = ctk.CTkFrame(self, fg_color="#0F172A", height=68, corner_radius=0)
+        header_frame.pack(fill="x", side="top")
+        header_frame.pack_propagate(False)
+        
+        # Left: App Icon + Name + Version Badge + Subtitle
+        header_left = ctk.CTkFrame(header_frame, fg_color="transparent")
+        header_left.pack(side="left", padx=20, pady=10)
+        
+        title_row = ctk.CTkFrame(header_left, fg_color="transparent")
+        title_row.pack(anchor="w")
+        
+        app_icon = ctk.CTkLabel(title_row, text="🎙️", font=ctk.CTkFont(size=20))
+        app_icon.pack(side="left", padx=(0, 8))
+        
+        app_title = ctk.CTkLabel(
+            title_row, 
+            text="Speech2AI", 
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#F8FAFC"
+        )
+        app_title.pack(side="left")
+        
+        version_badge = ctk.CTkFrame(title_row, fg_color="#1E293B", corner_radius=6)
+        version_badge.pack(side="left", padx=10)
+        version_lbl = ctk.CTkLabel(version_badge, text="v2.5", font=ctk.CTkFont(size=11, weight="bold"), text_color="#38BDF8")
+        version_lbl.pack(padx=8, pady=2)
+        
+        subtitle_lbl = ctk.CTkLabel(
+            header_left, 
+            text=_t("app_subtitle"), 
+            font=ctk.CTkFont(size=11),
+            text_color="#94A3B8"
+        )
+        subtitle_lbl.pack(anchor="w", pady=(2, 0))
+        
+        # Right: Live Service Status Pill
+        header_right = ctk.CTkFrame(header_frame, fg_color="transparent")
+        header_right.pack(side="right", padx=20, pady=12)
+        
+        is_daemon_running = os.path.exists('/tmp/speech2ai2text_tray_singleton.lock')
+        status_color = "#10B981" if is_daemon_running else "#64748B"
+        status_text = _t("daemon_active") if is_daemon_running else _t("daemon_inactive")
+        
+        status_pill = ctk.CTkFrame(header_right, fg_color="#1E293B", corner_radius=20, border_width=1, border_color="#334155")
+        status_pill.pack(side="right")
+        
+        dot_lbl = ctk.CTkLabel(status_pill, text="●", font=ctk.CTkFont(size=12), text_color=status_color)
+        dot_lbl.pack(side="left", padx=(10, 4), pady=4)
+        
+        status_name = ctk.CTkLabel(
+            status_pill, 
+            text=status_text, 
+            font=ctk.CTkFont(size=11, weight="bold"), 
+            text_color="#E2E8F0"
+        )
+        status_name.pack(side="left", padx=(0, 12), pady=4)
+
+        # 2. Hero Configuration Summary Strip
+        summary_frame = ctk.CTkFrame(self, fg_color="#111827", height=42, corner_radius=10, border_width=1, border_color="#1E293B")
+        summary_frame.pack(fill="x", side="top", padx=15, pady=(12, 6))
+        summary_frame.pack_propagate(False)
+
+        stt_model_val = self.config.get("gemini_model", "gemini-3.5-transcribe")
+        rewrite_model_val = self.config.get("gemini_rewrite_model", "gemini-3.5-flash")
+        
+        # Left badges container
+        badges_container = ctk.CTkFrame(summary_frame, fg_color="transparent")
+        badges_container.pack(side="left", padx=12, fill="y")
+        
+        badge_stt = ctk.CTkFrame(badges_container, fg_color="#1E293B", corner_radius=6)
+        badge_stt.pack(side="left", pady=8, padx=(0, 8))
+        ctk.CTkLabel(badge_stt, text=f"🎙️ {_t('active_summary_stt')}: {stt_model_val}", font=ctk.CTkFont(size=11, weight="bold"), text_color="#38BDF8").pack(padx=8, pady=3)
+
+        badge_ai = ctk.CTkFrame(badges_container, fg_color="#1E293B", corner_radius=6)
+        badge_ai.pack(side="left", pady=8, padx=8)
+        ctk.CTkLabel(badge_ai, text=f"✍️ {_t('active_summary_ai')}: {rewrite_model_val}", font=ctk.CTkFont(size=11, weight="bold"), text_color="#A78BFA").pack(padx=8, pady=3)
+
+        # 3. Persistent Sticky Bottom Action Bar
+        footer_bar = ctk.CTkFrame(self, fg_color="#0F172A", height=60, corner_radius=0)
+        footer_bar.pack(fill="x", side="bottom")
+        footer_bar.pack_propagate(False)
+        
+        btn_view_logs = ctk.CTkButton(
+            footer_bar,
+            text=_t("btn_view_logs"),
+            command=self.open_log_window,
+            width=140,
+            height=36,
+            corner_radius=8,
+            fg_color="#1E293B",
+            hover_color="#334155",
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        btn_view_logs.pack(side="left", padx=20, pady=12)
+        
+        btn_sticky_save = ctk.CTkButton(
+            footer_bar,
+            text=f"💾 {_t('btn_save')}",
+            command=self.save_settings,
+            width=170,
+            height=36,
+            corner_radius=8,
+            fg_color="#6366F1",
+            hover_color="#4F46E5",
+            text_color="#FFFFFF",
+            font=ctk.CTkFont(size=13, weight="bold")
+        )
+        btn_sticky_save.pack(side="right", padx=20, pady=12)
+
+        # 4. Main Segmented Tabview
         self.tabview = ctk.CTkTabview(
             self,
             fg_color="#090D16",
-            segmented_button_fg_color="#131A26",
+            segmented_button_fg_color="#111827",
             segmented_button_selected_color="#6366F1",
             segmented_button_selected_hover_color="#4F46E5",
-            segmented_button_unselected_color="#131A26",
+            segmented_button_unselected_color="#111827",
             segmented_button_unselected_hover_color="#1E293B",
             text_color="#E2E8F0"
         )
-        self.tabview.pack(fill="both", expand=True, padx=15, pady=15)
+        self.tabview.pack(fill="both", expand=True, padx=15, pady=(4, 8))
         
         self.tabview.add(_t("tab_cloud"))
         self.tabview.add(_t("tab_local"))
@@ -344,18 +518,8 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.setup_prompts_tab()
 
     def add_save_button(self, scroll_frame):
-        btn_save = ctk.CTkButton(
-            scroll_frame, 
-            text=_t("btn_save"), 
-            command=self.save_settings, 
-            height=42, 
-            corner_radius=8,
-            fg_color="#6366F1",
-            hover_color="#4F46E5",
-            text_color="#FFFFFF",
-            font=ctk.CTkFont(size=13, weight="bold")
-        )
-        btn_save.pack(fill="x", pady=(20, 10))
+        # Replaced by the persistent sticky bottom footer action bar
+        pass
 
     def setup_engines_tab(self):
         tab = self.tabview.tab(_t("tab_cloud"))
