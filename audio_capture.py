@@ -110,6 +110,8 @@ class AudioRecorder:
     def __init__(self, sample_rate=16000, channels=1, device_name=None):
         self.sample_rate = sample_rate
         self.channels = channels
+        self.capture_rate = 48000
+        self.capture_channels = 2
         self.device_index = self.get_device_index_by_name(device_name)
 
     def play_beep(self, frequency=550, duration=0.08, volume=0.15):
@@ -144,7 +146,7 @@ class AudioRecorder:
                     pass
 
             from logger import log_info, log_error, log_debug
-            log_info(f"Audio recording initialized. Device: {self.device_index}, SampleRate: {self.sample_rate}")
+            log_info(f"Audio recording initialized. Device: {self.device_index}, CaptureRate: {self.capture_rate}Hz, TargetRate: {self.sample_rate}Hz")
             
             # 1. Detect shortcut keys initially pressed on launch if not passed
             if initial_keys is None:
@@ -171,8 +173,9 @@ class AudioRecorder:
                     log_error(f"Audio stream status warning: {status}")
                 audio_queue.put(indata.copy())
                 try:
-                    rms = np.sqrt(np.mean(indata.astype(np.float32)**2))
-                    AudioRecorder.current_volume = min(1.0, rms / 3500.0)
+                    mono_chunk = np.mean(indata, axis=1) if indata.ndim > 1 else indata
+                    rms = np.sqrt(np.mean(mono_chunk.astype(np.float32)**2))
+                    AudioRecorder.current_volume = min(1.0, float(rms * 10.0))
                 except Exception:
                     AudioRecorder.current_volume = 0.0
     
@@ -184,8 +187,8 @@ class AudioRecorder:
             sd.default.latency = 'low'
             
             try:
-                with sd.InputStream(samplerate=self.sample_rate, channels=self.channels, 
-                                     device=self.device_index, dtype='int16', callback=callback):
+                with sd.InputStream(samplerate=self.capture_rate, channels=self.capture_channels, 
+                                     device=self.device_index, dtype='float32', callback=callback):
                     
                     min_duration = 0.3
                     released_consecutive_count = 0
@@ -239,16 +242,32 @@ class AudioRecorder:
                 log_error("No audio chunks were captured from the stream.")
                 return None
     
-            # 4. Save to WAV file
+            # 4. Process and Save to WAV file
             try:
                 import scipy.io.wavfile as wav
-                recording = np.concatenate(recorded_chunks, axis=0)
-                dur = len(recording) / self.sample_rate
-                rms = np.sqrt(np.mean(recording.astype(np.float32)**2)) if len(recording) > 0 else 0
-                max_amp = np.max(np.abs(recording)) if len(recording) > 0 else 0
+                import scipy.signal
+                raw_audio = np.concatenate(recorded_chunks, axis=0)
+                
+                # Convert stereo to mono
+                if raw_audio.ndim > 1:
+                    mono_audio = np.mean(raw_audio, axis=1)
+                else:
+                    mono_audio = raw_audio
+                    
+                # Resample 48000Hz -> 16000Hz (downsample 3:1)
+                if self.capture_rate != self.sample_rate:
+                    mono_16k = scipy.signal.resample_poly(mono_audio, self.sample_rate // 1000, self.capture_rate // 1000)
+                else:
+                    mono_16k = mono_audio
+                    
+                # Convert float32 [-1.0, 1.0] to int16 PCM
+                int16_audio = np.clip(mono_16k * 32767.0, -32768, 32767).astype(np.int16)
+                dur = len(int16_audio) / self.sample_rate
+                rms = np.sqrt(np.mean(int16_audio.astype(np.float32)**2)) if len(int16_audio) > 0 else 0
+                max_amp = np.max(np.abs(int16_audio)) if len(int16_audio) > 0 else 0
                 
                 os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-                wav.write(output_path, self.sample_rate, recording)
+                wav.write(output_path, self.sample_rate, int16_audio)
                 log_info(f"Saved audio to {output_path} | Duration: {dur:.2f}s | RMS: {rms:.2f} | MaxPeak: {max_amp}")
                 return output_path
             except Exception as e:
