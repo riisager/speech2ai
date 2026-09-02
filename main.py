@@ -150,13 +150,20 @@ def transcribe_gemini(audio_path, config, session=None):
     if r.status_code == 200:
         res = r.json()
         try:
-            text = res["candidates"][0]["content"]["parts"][0]["text"].strip()
+            candidates = res.get("candidates", [])
+            if not candidates:
+                return ""
+            content = candidates[0].get("content", {})
+            parts = content.get("parts", [])
+            if not parts:
+                return ""
+            text = parts[0].get("text", "").strip()
             # Clean up potential leading/trailing markdown wrapper or quotes
             if text.startswith('"') and text.endswith('"'):
                 text = text[1:-1].strip()
             return text
-        except (KeyError, IndexError):
-            raise Exception("Modtog ugyldigt JSON-format fra Gemini API.")
+        except Exception:
+            return ""
     else:
         raise Exception(f"Gemini API svarede med fejl ({r.status_code}): {r.text}")
 

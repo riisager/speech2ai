@@ -108,7 +108,10 @@ class RewriteEngine:
         return text
 
     def _gemini_rewrite(self, text, system_prompt, temperature=0.4):
-        model = self.config.get("gemini_model", "gemini-1.5-flash")
+        model = self.config.get("gemini_model", "gemini-3.5-flash")
+        # Transcribe models only accept audio input; use general Flash for text rewriting
+        if "transcribe" in model:
+            model = "gemini-3.5-flash"
         print(f"Rewriting via Gemini using model: {model} (temp={temperature})")
         api_key = self.config.get("gemini_api_key")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
@@ -136,7 +139,12 @@ class RewriteEngine:
             r = post_func(url, headers=headers, json=payload, timeout=8)
             if r.status_code == 200:
                 res_data = r.json()
-                return res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                candidate = res_data.get("candidates", [{}])[0]
+                content = candidate.get("content", {})
+                parts = content.get("parts", [])
+                if parts:
+                    return parts[0].get("text", "").strip()
+                return text
             else:
                 print(f"Gemini API error ({r.status_code}): {r.text}", file=sys.stderr)
         except Exception as e:
