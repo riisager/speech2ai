@@ -82,7 +82,7 @@ fi
 echo -e "\n${BLUE}[3/5] Opretter virtuelt Python-miljø (.venv)...${CLEAR}"
 if [ ! -d ".venv" ] || [ ! -f ".venv/bin/pip" ]; then
     rm -rf .venv
-    python3 -m venv .venv
+    python3 -m venv --system-site-packages .venv
     echo -e "✓ .venv oprettet."
 else
     echo -e "✓ .venv findes allerede."
