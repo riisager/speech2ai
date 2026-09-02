@@ -132,7 +132,7 @@ def build_tray_menu(icon_ref=None):
     """Builds a rich dynamic tray menu with quick-actions and model selection."""
     cfg = load_config()
     curr_stt = cfg.get("gemini_model", "gemini-3.5-transcribe")
-    curr_rewrite = cfg.get("gemini_rewrite_model", "gemini-3.5-flash")
+    curr_rewrite = cfg.get("gemini_rewrite_model", "gemini-flash-lite-latest")
     
     def set_stt(m):
         def _cb(icon, item):
@@ -157,9 +157,9 @@ def build_tray_menu(icon_ref=None):
     )
     
     rewrite_menu = pystray.Menu(
-        pystray.MenuItem("gemini-3.5-flash (Anbefalet)", set_rewrite("gemini-3.5-flash"), checked=lambda item: curr_rewrite == "gemini-3.5-flash", radio=True),
+        pystray.MenuItem("gemini-flash-lite-latest (Anbefalet)", set_rewrite("gemini-flash-lite-latest"), checked=lambda item: curr_rewrite == "gemini-flash-lite-latest", radio=True),
         pystray.MenuItem("gemini-flash-latest", set_rewrite("gemini-flash-latest"), checked=lambda item: curr_rewrite == "gemini-flash-latest", radio=True),
-        pystray.MenuItem("gemini-flash-lite-latest", set_rewrite("gemini-flash-lite-latest"), checked=lambda item: curr_rewrite == "gemini-flash-lite-latest", radio=True),
+        pystray.MenuItem("gemini-3.5-flash", set_rewrite("gemini-3.5-flash"), checked=lambda item: curr_rewrite == "gemini-3.5-flash", radio=True),
         pystray.MenuItem("gemini-3.5-pro", set_rewrite("gemini-3.5-pro"), checked=lambda item: curr_rewrite == "gemini-3.5-pro", radio=True),
     )
 

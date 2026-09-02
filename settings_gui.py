@@ -282,7 +282,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             "groq_api_key": "",
             "gemini_api_key": "",
             "gemini_model": "gemini-3.5-transcribe",
-            "gemini_rewrite_model": "gemini-3.5-flash",
+            "gemini_rewrite_model": "gemini-flash-lite-latest",
             "enable_notifications": True,
             "enable_beeps": True,
             "beep_volume": 0.2,
@@ -445,7 +445,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         summary_frame.pack_propagate(False)
 
         stt_model_val = self.config.get("gemini_model", "gemini-3.5-transcribe")
-        rewrite_model_val = self.config.get("gemini_rewrite_model", "gemini-3.5-flash")
+        rewrite_model_val = self.config.get("gemini_rewrite_model", "gemini-flash-lite-latest")
         
         # Left badges container
         badges_container = ctk.CTkFrame(summary_frame, fg_color="transparent")
@@ -622,13 +622,13 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         lbl_gemini_rewrite.pack(anchor="w", padx=10, pady=(5, 2))
 
         gemini_rewrite_models = [
-            "gemini-3.5-flash",
-            "gemini-flash-latest",
             "gemini-flash-lite-latest",
+            "gemini-flash-latest",
+            "gemini-3.5-flash",
             "gemini-3.5-flash-lite",
             "gemini-3.5-pro"
         ]
-        saved_rewrite_model = self.config.get("gemini_rewrite_model", "gemini-3.5-flash")
+        saved_rewrite_model = self.config.get("gemini_rewrite_model", "gemini-flash-lite-latest")
         if saved_rewrite_model not in gemini_rewrite_models:
             gemini_rewrite_models.insert(0, saved_rewrite_model)
 
