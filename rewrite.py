@@ -112,6 +112,8 @@ class RewriteEngine:
         # Transcribe models only accept audio input; fallback to Flash-Lite for text rewriting
         if "transcribe" in model:
             model = "gemini-flash-lite-latest"
+        elif model in ("gemini-latest-flash-lite", "gemini-latest-flash"):
+            model = "gemini-flash-lite-latest" if "lite" in model else "gemini-flash-latest"
         print(f"Rewriting via Gemini using model: {model} (temp={temperature})")
         api_key = self.config.get("gemini_api_key")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
