@@ -67,6 +67,47 @@ def trigger_dictation(mode):
     if global_overlay:
         global_overlay.after(0, lambda m=mode: start_recording_from_socket(global_overlay, global_config, m, global_session))
 
+def send_desktop_notification(title, message):
+    try:
+        subprocess.run(["notify-send", "-a", "Speech2AI", title, message], check=False)
+    except Exception:
+        pass
+
+def copy_last_transcription():
+    """Copies the latest transcribed text back to the system clipboard and notifies user."""
+    last_text_path = "/tmp/speech2ai_last_text.txt"
+    if os.path.exists(last_text_path):
+        try:
+            with open(last_text_path, "r", encoding="utf-8") as f:
+                text = f.read().strip()
+            if text:
+                try:
+                    subprocess.run(["xclip", "-selection", "clipboard"], input=text.encode("utf-8"), check=False)
+                except Exception:
+                    pass
+                from audio_capture import play_audio_cue
+                play_audio_cue("success", volume=0.2)
+                preview = text[:55] + "..." if len(text) > 55 else text
+                send_desktop_notification("Speech2AI", f"{_t('tray_copied_toast')}\n\"{preview}\"")
+                return
+        except Exception:
+            pass
+    send_desktop_notification("Speech2AI", _t("tray_no_last_text"))
+
+def update_config_value(key, value):
+    """Dynamically updates a configuration setting and notifies user."""
+    try:
+        cfg = load_config()
+        cfg[key] = value
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=4, ensure_ascii=False)
+        from logger import log_info
+        log_info(f"Tray updated config {key} -> {value}")
+        send_desktop_notification("Speech2AI", _t("tray_model_switched").format(model=value))
+    except Exception as e:
+        from logger import log_error
+        log_error(f"Failed to update config {key}: {e}")
+
 def on_menu_clicked(icon, item):
     """Callback for menu item clicks."""
     name = str(item)
@@ -86,6 +127,58 @@ def on_menu_clicked(icon, item):
         except Exception:
             pass
         os._exit(0)
+
+def build_tray_menu(icon_ref=None):
+    """Builds a rich dynamic tray menu with quick-actions and model selection."""
+    cfg = load_config()
+    curr_stt = cfg.get("gemini_model", "gemini-3.5-transcribe")
+    curr_rewrite = cfg.get("gemini_rewrite_model", "gemini-3.5-flash")
+    
+    def set_stt(m):
+        def _cb(icon, item):
+            update_config_value("gemini_model", m)
+            if icon_ref:
+                icon_ref.menu = build_tray_menu(icon_ref)
+        return _cb
+        
+    def set_rewrite(m):
+        def _cb(icon, item):
+            update_config_value("gemini_rewrite_model", m)
+            if icon_ref:
+                icon_ref.menu = build_tray_menu(icon_ref)
+        return _cb
+
+    stt_menu = pystray.Menu(
+        pystray.MenuItem("gemini-3.5-transcribe (Anbefalet)", set_stt("gemini-3.5-transcribe"), checked=lambda item: curr_stt == "gemini-3.5-transcribe", radio=True),
+        pystray.MenuItem("gemini-flash-latest", set_stt("gemini-flash-latest"), checked=lambda item: curr_stt == "gemini-flash-latest", radio=True),
+        pystray.MenuItem("gemini-flash-lite-latest", set_stt("gemini-flash-lite-latest"), checked=lambda item: curr_stt == "gemini-flash-lite-latest", radio=True),
+        pystray.MenuItem("gemini-3.5-flash", set_stt("gemini-3.5-flash"), checked=lambda item: curr_stt == "gemini-3.5-flash", radio=True),
+        pystray.MenuItem("gemini-3.5-flash-lite", set_stt("gemini-3.5-flash-lite"), checked=lambda item: curr_stt == "gemini-3.5-flash-lite", radio=True),
+    )
+    
+    rewrite_menu = pystray.Menu(
+        pystray.MenuItem("gemini-3.5-flash (Anbefalet)", set_rewrite("gemini-3.5-flash"), checked=lambda item: curr_rewrite == "gemini-3.5-flash", radio=True),
+        pystray.MenuItem("gemini-flash-latest", set_rewrite("gemini-flash-latest"), checked=lambda item: curr_rewrite == "gemini-flash-latest", radio=True),
+        pystray.MenuItem("gemini-flash-lite-latest", set_rewrite("gemini-flash-lite-latest"), checked=lambda item: curr_rewrite == "gemini-flash-lite-latest", radio=True),
+        pystray.MenuItem("gemini-3.5-pro", set_rewrite("gemini-3.5-pro"), checked=lambda item: curr_rewrite == "gemini-3.5-pro", radio=True),
+    )
+
+    return pystray.Menu(
+        pystray.MenuItem("🎙️ Speech2AI v2.5", lambda: None, enabled=False),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(_t("tray_copy_last"), lambda icon, item: copy_last_transcription()),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(_t("tray_stt_model"), stt_menu),
+        pystray.MenuItem(_t("tray_rewrite_model"), rewrite_menu),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(_t("tray_direct"), on_menu_clicked),
+        pystray.MenuItem(_t("tray_ai"), on_menu_clicked),
+        pystray.MenuItem(_t("tray_prompt"), on_menu_clicked),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(_t("tray_settings"), on_menu_clicked, default=True),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(_t("tray_exit"), on_menu_clicked)
+    )
 
 def monitor_recording_state(icon):
     """Background loop that updates the tray icon color based on active recording locks."""
@@ -127,24 +220,12 @@ def run_tray():
     except Exception:
         initial_icon = create_mic_icon((230, 230, 230, 255))
     
-    menu = pystray.Menu(
-        pystray.MenuItem("Speech2AI", lambda: None, enabled=False),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem(_t("tray_direct"), on_menu_clicked),
-        pystray.MenuItem(_t("tray_ai"), on_menu_clicked),
-        pystray.MenuItem(_t("tray_prompt"), on_menu_clicked),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem(_t("tray_settings"), on_menu_clicked, default=True),
-        pystray.Menu.SEPARATOR,
-        pystray.MenuItem(_t("tray_exit"), on_menu_clicked)
-    )
-    
     icon = pystray.Icon(
         "speech2ai", 
         icon=initial_icon, 
-        title="Speech2AI", 
-        menu=menu
+        title="Speech2AI"
     )
+    icon.menu = build_tray_menu(icon)
     
     monitor_thread = threading.Thread(target=monitor_recording_state, args=(icon,), daemon=True)
     monitor_thread.start()

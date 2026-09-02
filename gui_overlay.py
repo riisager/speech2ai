@@ -422,12 +422,24 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
                 clean_text = rewriter.process(clean_text, style="cursor_prompt", selected_text=selected_text)
                 log_info(f"AI Prompt completed: '{clean_text}'")
                 
-            # 5. Paste & Success State
+            # 5. Cache last transcription for tray quick-copy
+            try:
+                with open("/tmp/speech2ai_last_text.txt", "w", encoding="utf-8") as f:
+                    f.write(clean_text)
+            except Exception:
+                pass
+
+            # 6. Paste & Success State
             overlay.set_state("success", _t("state_inserting"))
             log_info("Pasting final text to active window and clipboard...")
             from output import ClipboardPaster
             paster = ClipboardPaster()
             paster.paste(clean_text)
+            
+            # Play delightful confirmation chime
+            if config.get("enable_beeps", True):
+                from audio_capture import play_audio_cue
+                play_audio_cue("success", volume=config.get("beep_volume", 0.2))
             
             time.sleep(0.5)
             log_info("Pipeline finished successfully.")
@@ -435,6 +447,9 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
         except Exception as e:
             error_str = str(e)
             log_error("Error in overlay pipeline", exc=e)
+            if config.get("enable_beeps", True):
+                from audio_capture import play_audio_cue
+                play_audio_cue("error", volume=config.get("beep_volume", 0.2))
             overlay.set_state("error", _t("state_error"))
             time.sleep(2.0)
         finally:

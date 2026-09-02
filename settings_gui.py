@@ -883,8 +883,11 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         )
         lbl_vol.pack(anchor="w", pady=(5, 0))
         
+        vol_row = ctk.CTkFrame(scroll_frame, fg_color="transparent")
+        vol_row.pack(anchor="w", pady=(0, 20))
+        
         self.vol_slider = ctk.CTkSlider(
-            scroll_frame, 
+            vol_row, 
             from_=0.0, 
             to=1.0, 
             width=200,
@@ -894,7 +897,21 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             fg_color="#1E293B"
         )
         self.vol_slider.set(self.config.get("beep_volume", 0.2))
-        self.vol_slider.pack(anchor="w", pady=(0, 20))
+        self.vol_slider.pack(side="left", padx=(0, 15))
+
+        btn_test_sound = ctk.CTkButton(
+            vol_row,
+            text=_t("btn_test_sound"),
+            width=100,
+            height=28,
+            corner_radius=6,
+            fg_color="#1E293B",
+            hover_color="#334155",
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            command=self.test_audio_cue
+        )
+        btn_test_sound.pack(side="left")
  
         # Advanced settings
         lbl_advanced = ctk.CTkLabel(
@@ -1550,10 +1567,18 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             self.lbl_mic_test_status.configure(text=_t("mic_test_listening").format(pct=pct), text_color="#38BDF8")
 
     def _finish_mic_test_ui(self, summary, color):
-        """Restores button state and displays test summary."""
         self.btn_test_mic.configure(text=_t("btn_test_mic"), fg_color="#6366F1", hover_color="#4F46E5")
         self.mic_test_progress.set(0.0)
         self.lbl_mic_test_status.configure(text=summary, text_color=color)
+
+    def test_audio_cue(self):
+        """Plays the synthesized modern acoustic chime for volume preview."""
+        try:
+            from audio_capture import play_audio_cue
+            vol = float(self.vol_slider.get())
+            play_audio_cue("success", volume=vol)
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     # Change working directory to the directory of this script to locate JSON files

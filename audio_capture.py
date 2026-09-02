@@ -115,20 +115,59 @@ class AudioRecorder:
         self.device_index = self.get_device_index_by_name(device_name)
 
     def play_beep(self, frequency=550, duration=0.08, volume=0.15):
-        """Plays a programmatic sine wave beep tone asynchronously in a background thread."""
-        import numpy as np
-        import sounddevice as sd
-        def _play():
-            try:
-                t = np.linspace(0, duration, int(self.sample_rate * duration), False)
-                wave = np.sin(frequency * 2 * np.pi * t) * volume
-                sd.play(wave.astype(np.float32), self.sample_rate)
-                sd.wait()
-            except Exception:
-                pass
-        
-        import threading
-        threading.Thread(target=_play, daemon=True).start()
+        """Backwards-compatible helper that delegates to play_audio_cue."""
+        cue = "start" if frequency > 500 else "stop"
+        play_audio_cue(cue, volume=volume, sample_rate=self.capture_rate)
+
+
+def play_audio_cue(cue="start", volume=0.2, sample_rate=48000):
+    """Plays a synthesized, click-free acoustic cue with smooth Hann window envelopes."""
+    import numpy as np
+    import sounddevice as sd
+    import threading
+
+    def _synthesize():
+        try:
+            vol = max(0.01, min(1.0, float(volume)))
+            sr = sample_rate
+            if cue == "start":
+                # Upward 2-tone harmonic chord (C5 523Hz -> E5 659Hz)
+                t1 = np.linspace(0, 0.045, int(sr * 0.045), False)
+                w1 = np.sin(2 * np.pi * 523.25 * t1) * np.hanning(len(t1)) * 0.7
+                t2 = np.linspace(0, 0.065, int(sr * 0.065), False)
+                w2 = np.sin(2 * np.pi * 659.25 * t2) * np.hanning(len(t2))
+                wave = np.concatenate([w1, w2]) * vol
+            elif cue == "stop":
+                # Subtle descending haptic tap (440Hz -> 330Hz)
+                dur = 0.05
+                t = np.linspace(0, dur, int(sr * dur), False)
+                freqs = np.linspace(440, 330, len(t))
+                w = np.sin(2 * np.pi * freqs * t)
+                env = np.linspace(1.0, 0.0, len(t)) ** 2
+                wave = w * env * vol * 0.6
+            elif cue == "success":
+                # Crisp confirmation chime (E5 659Hz -> A5 880Hz + overtone)
+                t1 = np.linspace(0, 0.05, int(sr * 0.05), False)
+                w1 = np.sin(2 * np.pi * 659.25 * t1) * np.hanning(len(t1)) * 0.6
+                t2 = np.linspace(0, 0.09, int(sr * 0.09), False)
+                w2 = (np.sin(2 * np.pi * 880.00 * t2) + 0.25 * np.sin(2 * np.pi * 1318.51 * t2)) * np.hanning(len(t2))
+                wave = np.concatenate([w1, w2]) * vol
+            elif cue == "error":
+                # Gentle low double-tap (220Hz)
+                t = np.linspace(0, 0.06, int(sr * 0.06), False)
+                w = np.sin(2 * np.pi * 220.0 * t) * np.hanning(len(t))
+                gap = np.zeros(int(sr * 0.03))
+                wave = np.concatenate([w, gap, w]) * vol * 0.8
+            else:
+                t = np.linspace(0, 0.08, int(sr * 0.08), False)
+                wave = np.sin(2 * np.pi * 550.0 * t) * np.hanning(len(t)) * vol
+                
+            sd.play(wave.astype(np.float32), sr)
+            sd.wait()
+        except Exception:
+            pass
+
+    threading.Thread(target=_synthesize, daemon=True).start()
 
     def record(self, max_duration=30, output_path="/tmp/dictation.wav", enable_beeps=True, beep_volume=0.2, initial_keys=None):
         """Records audio from the microphone. Stops when shortcut keys are released or max_duration is met."""
@@ -162,9 +201,9 @@ class AudioRecorder:
             else:
                 log_info("No shortcut keys held on trigger. Recording until timeout or manual stop.")
     
-            # 2. Play start beep
+            # 2. Play start acoustic cue
             if enable_beeps:
-                self.play_beep(frequency=650, duration=0.08, volume=beep_volume)
+                play_audio_cue("start", volume=beep_volume, sample_rate=self.capture_rate)
     
             # 3. Start audio input stream
             log_info("Audio stream open and actively recording...")
@@ -224,9 +263,9 @@ class AudioRecorder:
             except Exception as e:
                 log_error(f"Error during audio recording stream: {e}")
     
-            # Play stop beep
+            # Play stop acoustic cue
             if enable_beeps:
-                self.play_beep(frequency=450, duration=0.08, volume=beep_volume)
+                play_audio_cue("stop", volume=beep_volume, sample_rate=self.capture_rate)
     
             if not recorded_chunks:
                 log_error("No audio chunks were captured from the stream.")
