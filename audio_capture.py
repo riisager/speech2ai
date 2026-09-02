@@ -97,36 +97,36 @@ def play_audio_cue(cue="start", volume=0.2, sample_rate=48000):
             vol = max(0.01, min(1.0, float(volume)))
             sr = sample_rate
             if cue == "start":
-                # Upward 2-tone harmonic chord (C5 523Hz -> E5 659Hz)
+                # Warm, deep 2-tone marimba tap (220Hz A3 -> 293Hz D4 with 110Hz warm sub-base)
                 t1 = np.linspace(0, 0.045, int(sr * 0.045), False)
-                w1 = np.sin(2 * np.pi * 523.25 * t1) * np.hanning(len(t1)) * 0.7
+                w1 = (np.sin(2 * np.pi * 220.0 * t1) + 0.3 * np.sin(2 * np.pi * 110.0 * t1)) * np.hanning(len(t1)) * 0.8
                 t2 = np.linspace(0, 0.065, int(sr * 0.065), False)
-                w2 = np.sin(2 * np.pi * 659.25 * t2) * np.hanning(len(t2))
+                w2 = (np.sin(2 * np.pi * 293.66 * t2) + 0.3 * np.sin(2 * np.pi * 146.83 * t2)) * np.hanning(len(t2))
                 wave = np.concatenate([w1, w2]) * vol
             elif cue == "stop":
-                # Subtle descending haptic tap (440Hz -> 330Hz)
+                # Deep dampened descending tap (320Hz -> 200Hz with soft quadratic decay)
                 dur = 0.05
                 t = np.linspace(0, dur, int(sr * dur), False)
-                freqs = np.linspace(440, 330, len(t))
+                freqs = np.linspace(320.0, 200.0, len(t))
                 w = np.sin(2 * np.pi * freqs * t)
                 env = np.linspace(1.0, 0.0, len(t)) ** 2
-                wave = w * env * vol * 0.6
+                wave = w * env * vol * 0.7
             elif cue == "success":
-                # Crisp confirmation chime (E5 659Hz -> A5 880Hz + overtone)
+                # Deep, rich warm completion chord (261Hz C4 -> 392Hz G4 with 130Hz/196Hz warm base)
                 t1 = np.linspace(0, 0.05, int(sr * 0.05), False)
-                w1 = np.sin(2 * np.pi * 659.25 * t1) * np.hanning(len(t1)) * 0.6
+                w1 = (np.sin(2 * np.pi * 261.63 * t1) + 0.3 * np.sin(2 * np.pi * 130.81 * t1)) * np.hanning(len(t1)) * 0.7
                 t2 = np.linspace(0, 0.09, int(sr * 0.09), False)
-                w2 = (np.sin(2 * np.pi * 880.00 * t2) + 0.25 * np.sin(2 * np.pi * 1318.51 * t2)) * np.hanning(len(t2))
+                w2 = (np.sin(2 * np.pi * 392.00 * t2) + 0.35 * np.sin(2 * np.pi * 196.00 * t2)) * np.hanning(len(t2))
                 wave = np.concatenate([w1, w2]) * vol
             elif cue == "error":
-                # Gentle low double-tap (220Hz)
+                # Gentle low double-tap (180Hz)
                 t = np.linspace(0, 0.06, int(sr * 0.06), False)
-                w = np.sin(2 * np.pi * 220.0 * t) * np.hanning(len(t))
+                w = np.sin(2 * np.pi * 180.0 * t) * np.hanning(len(t))
                 gap = np.zeros(int(sr * 0.03))
                 wave = np.concatenate([w, gap, w]) * vol * 0.8
             else:
                 t = np.linspace(0, 0.08, int(sr * 0.08), False)
-                wave = np.sin(2 * np.pi * 550.0 * t) * np.hanning(len(t)) * vol
+                wave = np.sin(2 * np.pi * 300.0 * t) * np.hanning(len(t)) * vol
                 
             sd.play(wave.astype(np.float32), sr)
             sd.wait()
