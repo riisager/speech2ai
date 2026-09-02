@@ -7,15 +7,29 @@ ENV/
 __pycache__/
 *.py[cod]
 *$py.class
+*.pytest_cache/
+
+# Logs & debugging
+*.log
+logs/
+/tmp/*
 
 # Audio temporary files
 *.wav
-/tmp/speech2ai2text*
+*.mp3
+*.ogg
+*.flac
+*.pcm
+*.raw
+/tmp/speech2ai*
 
-# Configuration (contains private API keys)
+# Configuration (contains private API keys & settings)
 config.json
+.env
+.env.*
+*.lock
 
-# Local IDEs
+# Local IDEs & tools
 .idea/
 .vscode/
 .project
