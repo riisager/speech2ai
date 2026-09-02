@@ -610,7 +610,14 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             text_color="#E2E8F0"
         )
         self.gemini_model_entry.set(saved_stt_model)
-        self.gemini_model_entry.pack(anchor="w", padx=10, pady=(2, 10))
+        self.gemini_model_entry.pack(anchor="w", padx=10, pady=(2, 4))
+        lbl_stt_hint = ctk.CTkLabel(
+            gemini_cf.content_frame,
+            text=_t("gemini_stt_hint"),
+            font=ctk.CTkFont(size=10),
+            text_color="#64748B"
+        )
+        lbl_stt_hint.pack(anchor="w", padx=12, pady=(0, 10))
 
         # 2. AI Text Rewriting Model
         lbl_gemini_rewrite = ctk.CTkLabel(
@@ -648,7 +655,14 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             text_color="#E2E8F0"
         )
         self.gemini_rewrite_model_entry.set(saved_rewrite_model)
-        self.gemini_rewrite_model_entry.pack(anchor="w", padx=10, pady=(2, 12))
+        self.gemini_rewrite_model_entry.pack(anchor="w", padx=10, pady=(2, 4))
+        lbl_rewrite_hint = ctk.CTkLabel(
+            gemini_cf.content_frame,
+            text=_t("gemini_rewrite_hint"),
+            font=ctk.CTkFont(size=10),
+            text_color="#64748B"
+        )
+        lbl_rewrite_hint.pack(anchor="w", padx=12, pady=(0, 12))
  
         # Groq API Settings (Collapsible Card)
         is_groq = self.engine_var.get() == "groq_cloud"
