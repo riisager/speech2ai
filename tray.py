@@ -5,6 +5,7 @@ import time
 import threading
 import socket
 import requests
+import json
 from PIL import Image, ImageDraw
 from i18n import _t
 
@@ -23,6 +24,7 @@ except ImportError:
     sys.exit(1)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.json")
 LOCK_FILE = "/tmp/speech2ai2text_active.lock"
 SOCKET_PATH = "/tmp/speech2ai.sock"
 
