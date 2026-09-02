@@ -313,9 +313,9 @@ class RecordingOverlay(ctk.CTk):
 def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_keys=None, session=None):
     """Initializes and runs the GUI capsule overlay alongside the dictation pipeline."""
     # 1. Capture selected text first (before anything else to avoid losing focus/context)
+    from output import ClipboardPaster
     selected_text = ""
     if mode != "direct":
-        from output import ClipboardPaster
         selected_text = ClipboardPaster.get_selected_text()
         if selected_text:
             print(f"Captured active selection: {len(selected_text)} chars")
@@ -422,6 +422,7 @@ def start_overlay_pipeline(mode="direct", config=None, overlay=None, initial_key
             # 5. Paste & Success State
             overlay.set_state("success", _t("state_inserting"))
             log_info("Pasting final text to active window and clipboard...")
+            from output import ClipboardPaster
             paster = ClipboardPaster()
             paster.paste(clean_text)
             
