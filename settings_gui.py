@@ -754,7 +754,46 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             text_color="#E2E8F0",
             corner_radius=8
         )
-        self.mic_dropdown.pack(anchor="w", pady=(5, 20))
+        self.mic_dropdown.pack(anchor="w", pady=(5, 10))
+
+        # Microphone Test Container (Card Frame with live volume meter)
+        test_frame = ctk.CTkFrame(scroll_frame, fg_color="#131A26", corner_radius=10, border_width=1, border_color="#222F44")
+        test_frame.pack(anchor="w", fill="x", pady=(0, 20), padx=2)
+        
+        test_header_row = ctk.CTkFrame(test_frame, fg_color="transparent")
+        test_header_row.pack(fill="x", padx=12, pady=(10, 5))
+        
+        self.btn_test_mic = ctk.CTkButton(
+            test_header_row,
+            text=_t("btn_test_mic"),
+            command=self.toggle_mic_test,
+            width=140,
+            height=32,
+            fg_color="#6366F1",
+            hover_color="#4F46E5",
+            text_color="#FFFFFF",
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        self.btn_test_mic.pack(side="left")
+        
+        self.lbl_mic_test_status = ctk.CTkLabel(
+            test_header_row,
+            text=_t("mic_test_hint"),
+            text_color="#94A3B8",
+            font=ctk.CTkFont(size=11)
+        )
+        self.lbl_mic_test_status.pack(side="left", padx=12)
+        
+        self.mic_test_progress = ctk.CTkProgressBar(
+            test_frame,
+            height=8,
+            corner_radius=4,
+            fg_color="#0B0F19",
+            progress_color="#10B981"
+        )
+        self.mic_test_progress.set(0.0)
+        self.mic_test_progress.pack(fill="x", padx=12, pady=(5, 12))
 
         # Language Settings
         lbl_lang = ctk.CTkLabel(
@@ -1229,6 +1268,79 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             command=dialog.destroy
         )
         btn.pack(pady=(0, 10))
+
+    def toggle_mic_test(self):
+        """Toggles the live microphone test on or off."""
+        if getattr(self, "is_testing_mic", False):
+            self.stop_mic_test()
+        else:
+            self.start_mic_test()
+
+    def start_mic_test(self):
+        """Starts the live microphone test thread and animates the VU meter."""
+        self.is_testing_mic = True
+        self.btn_test_mic.configure(text=_t("btn_stop_test_mic"), fg_color="#EF4444", hover_color="#DC2626")
+        self.lbl_mic_test_status.configure(text=_t("mic_test_listening").format(pct=0), text_color="#38BDF8")
+        
+        selected_device = self.mic_var.get()
+        import threading
+        self.mic_test_thread = threading.Thread(target=self._run_mic_test_thread, args=(selected_device,), daemon=True)
+        self.mic_test_thread.start()
+
+    def stop_mic_test(self):
+        """Stops the live microphone test."""
+        self.is_testing_mic = False
+        self.btn_test_mic.configure(text=_t("btn_test_mic"), fg_color="#6366F1", hover_color="#4F46E5")
+
+    def _run_mic_test_thread(self, device_name):
+        """Captures real-time audio from selected device and pushes volume levels to the UI."""
+        import sounddevice as sd
+        import numpy as np
+        from audio_capture import AudioRecorder
+        
+        dev_idx = AudioRecorder.get_device_index_by_name(device_name if device_name != _t("mic_default") else None)
+        max_peak = 0.0
+        start_time = time.time()
+        
+        try:
+            with sd.InputStream(samplerate=48000, channels=2, device=dev_idx, dtype='float32') as stream:
+                while self.is_testing_mic:
+                    if time.time() - start_time > 8.0:
+                        break
+                    indata, overflowed = stream.read(1024)
+                    mono = np.mean(indata, axis=1) if indata.ndim > 1 else indata
+                    rms = float(np.sqrt(np.mean(mono**2)))
+                    volume_pct = min(1.0, rms * 15.0)
+                    pct_int = int(volume_pct * 100)
+                    if volume_pct > max_peak:
+                        max_peak = volume_pct
+                    
+                    self.after(0, lambda v=volume_pct, p=pct_int: self._update_meter_tick(v, p))
+                    time.sleep(0.03)
+        except Exception as e:
+            self.after(0, lambda err=str(e): self.lbl_mic_test_status.configure(text=f"Fejl: {err}", text_color="#EF4444"))
+        finally:
+            self.is_testing_mic = False
+            max_pct = int(max_peak * 100)
+            if max_pct > 2:
+                summary = _t("mic_test_ok").format(max_pct=max_pct)
+                color = "#10B981"
+            else:
+                summary = _t("mic_test_silent")
+                color = "#F59E0B"
+            self.after(0, lambda s=summary, c=color: self._finish_mic_test_ui(s, c))
+
+    def _update_meter_tick(self, volume, pct):
+        """Updates the progress bar and percentage label."""
+        if hasattr(self, "mic_test_progress"):
+            self.mic_test_progress.set(volume)
+            self.lbl_mic_test_status.configure(text=_t("mic_test_listening").format(pct=pct), text_color="#38BDF8")
+
+    def _finish_mic_test_ui(self, summary, color):
+        """Restores button state and displays test summary."""
+        self.btn_test_mic.configure(text=_t("btn_test_mic"), fg_color="#6366F1", hover_color="#4F46E5")
+        self.mic_test_progress.set(0.0)
+        self.lbl_mic_test_status.configure(text=summary, text_color=color)
 
 if __name__ == "__main__":
     # Change working directory to the directory of this script to locate JSON files
