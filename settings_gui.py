@@ -409,18 +409,33 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.gemini_key_entry.insert(0, self.config.get("gemini_api_key", ""))
         self.gemini_key_entry.pack(anchor="w", fill="x", padx=10, pady=5)
         
-        self.gemini_model_entry = ctk.CTkEntry(
-            gemini_cf.content_frame, 
-            placeholder_text=_t("gemini_model_placeholder"), 
-            width=250,
+        gemini_models = [
+            "gemini-3.5-transcribe",
+            "gemini-flash-latest",
+            "gemini-flash-lite-latest",
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite"
+        ]
+        saved_model = self.config.get("gemini_model", "gemini-3.5-transcribe")
+        if saved_model not in gemini_models:
+            gemini_models.insert(0, saved_model)
+            
+        self.gemini_model_entry = ctk.CTkComboBox(
+            gemini_cf.content_frame,
+            values=gemini_models,
+            width=320,
             corner_radius=8,
             border_width=1,
             border_color="#222F44",
             fg_color="#0B0F19",
-            text_color="#E2E8F0",
-            placeholder_text_color="#64748B"
+            button_color="#1E293B",
+            button_hover_color="#334155",
+            dropdown_fg_color="#131A26",
+            dropdown_hover_color="#1E293B",
+            dropdown_text_color="#E2E8F0",
+            text_color="#E2E8F0"
         )
-        self.gemini_model_entry.insert(0, self.config.get("gemini_model", "gemini-3.5-flash"))
+        self.gemini_model_entry.set(saved_model)
         self.gemini_model_entry.pack(anchor="w", padx=10, pady=(5, 10))
  
         # Groq API Settings (Collapsible Card)
