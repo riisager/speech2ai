@@ -166,37 +166,31 @@ class AudioRecorder:
             if enable_beeps:
                 self.play_beep(frequency=650, duration=0.08, volume=beep_volume)
     
-            audio_queue = queue.Queue()
-    
-            def callback(indata, frames, time_info, status):
-                if status:
-                    log_error(f"Audio stream status warning: {status}")
-                audio_queue.put(indata.copy())
-                try:
-                    mono_chunk = np.mean(indata, axis=1) if indata.ndim > 1 else indata
-                    rms = np.sqrt(np.mean(mono_chunk.astype(np.float32)**2))
-                    AudioRecorder.current_volume = min(1.0, float(rms * 10.0))
-                except Exception:
-                    AudioRecorder.current_volume = 0.0
-    
             # 3. Start audio input stream
             log_info("Audio stream open and actively recording...")
             start_time = time.time()
             recorded_chunks = []
             
-            sd.default.latency = 'low'
-            
             try:
                 with sd.InputStream(samplerate=self.capture_rate, channels=self.capture_channels, 
-                                     device=self.device_index, dtype='float32', callback=callback):
+                                     device=self.device_index, dtype='float32') as stream:
                     
                     min_duration = 0.3
                     released_consecutive_count = 0
                     while True:
                         elapsed = time.time() - start_time
                         
-                        while not audio_queue.empty():
-                            recorded_chunks.append(audio_queue.get())
+                        # Read 1024 frames (~21ms of audio at 48kHz) directly from hardware stream
+                        chunk, overflowed = stream.read(1024)
+                        recorded_chunks.append(chunk)
+                        
+                        # Live volume for HUD overlay animation
+                        try:
+                            mono_chunk = np.mean(chunk, axis=1) if chunk.ndim > 1 else chunk
+                            rms = np.sqrt(np.mean(mono_chunk.astype(np.float32)**2))
+                            AudioRecorder.current_volume = min(1.0, float(rms * 10.0))
+                        except Exception:
+                            AudioRecorder.current_volume = 0.0
                             
                         if elapsed >= max_duration:
                             log_info(f"Recording stopped: Reached maximum duration ({max_duration}s).")
@@ -226,13 +220,9 @@ class AudioRecorder:
                                         break
                                 else:
                                     released_consecutive_count = 0
-                                    
-                        time.sleep(0.05)
                         
             except Exception as e:
                 log_error(f"Error during audio recording stream: {e}")
-                while not audio_queue.empty():
-                    recorded_chunks.append(audio_queue.get())
     
             # Play stop beep
             if enable_beeps:
