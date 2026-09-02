@@ -336,7 +336,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         
         lbl_title = ctk.CTkLabel(
             header, 
-            text="📋 Realtids-Log (/tmp/speech2ai.log)", 
+            text=_t("log_viewer_title"), 
             font=ctk.CTkFont(size=14, weight="bold"), 
             text_color="#F8FAFC"
         )
@@ -359,7 +359,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             
         btn_refresh = ctk.CTkButton(
             header, 
-            text="🔄 Opdater", 
+            text=_t("btn_refresh_log"), 
             width=90, 
             height=30, 
             corner_radius=6,

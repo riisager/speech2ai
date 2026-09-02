@@ -11,6 +11,8 @@ TRANSLATIONS = {
         "daemon_active": "Tjeneste Aktiv",
         "daemon_inactive": "Tjeneste Inaktiv",
         "btn_view_logs": "📋 Se Live Log",
+        "log_viewer_title": "📋 Realtids-Log (/tmp/speech2ai.log)",
+        "btn_refresh_log": "🔄 Opdater",
         "active_summary_stt": "Lyd-model",
         "active_summary_ai": "AI-omskrivning",
         "active_summary_mic": "Mikrofon",
@@ -133,6 +135,8 @@ TRANSLATIONS = {
         "daemon_active": "Service Active",
         "daemon_inactive": "Service Inactive",
         "btn_view_logs": "📋 View Live Log",
+        "log_viewer_title": "📋 Real-time Log (/tmp/speech2ai.log)",
+        "btn_refresh_log": "🔄 Refresh",
         "active_summary_stt": "Audio Model",
         "active_summary_ai": "AI Rewrite",
         "active_summary_mic": "Microphone",
@@ -255,6 +259,8 @@ TRANSLATIONS = {
         "daemon_active": "Servicio Activo",
         "daemon_inactive": "Servicio Inactivo",
         "btn_view_logs": "📋 Ver Registro en Vivo",
+        "log_viewer_title": "📋 Registro en tiempo real (/tmp/speech2ai.log)",
+        "btn_refresh_log": "🔄 Actualizar",
         "active_summary_stt": "Modelo de Audio",
         "active_summary_ai": "Reescritura de IA",
         "active_summary_mic": "Micrófono",
@@ -384,6 +390,15 @@ def get_current_language():
     return "en"
 
 CURRENT_LANG = get_current_language()
+
+def set_current_language(lang):
+    global CURRENT_LANG
+    if lang in TRANSLATIONS:
+        CURRENT_LANG = lang
+
+def reload_language():
+    global CURRENT_LANG
+    CURRENT_LANG = get_current_language()
 
 def _t(key, lang=None):
     if not lang:
