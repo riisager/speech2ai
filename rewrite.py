@@ -108,8 +108,8 @@ class RewriteEngine:
         return text
 
     def _gemini_rewrite(self, text, system_prompt, temperature=0.4):
-        model = self.config.get("gemini_model", "gemini-3.5-flash")
-        # Transcribe models only accept audio input; use general Flash for text rewriting
+        model = self.config.get("gemini_rewrite_model") or self.config.get("gemini_model", "gemini-3.5-flash")
+        # Transcribe models only accept audio input; fallback to Flash for text rewriting
         if "transcribe" in model:
             model = "gemini-3.5-flash"
         print(f"Rewriting via Gemini using model: {model} (temp={temperature})")

@@ -410,20 +410,29 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.gemini_key_entry.insert(0, self.config.get("gemini_api_key", ""))
         self.gemini_key_entry.pack(anchor="w", fill="x", padx=10, pady=5)
         
-        gemini_models = [
+        # 1. Speech-to-Text Audio Model
+        lbl_gemini_stt = ctk.CTkLabel(
+            gemini_cf.content_frame,
+            text=_t("gemini_stt_model_lbl"),
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        lbl_gemini_stt.pack(anchor="w", padx=10, pady=(10, 2))
+        
+        gemini_stt_models = [
             "gemini-3.5-transcribe",
             "gemini-flash-latest",
             "gemini-flash-lite-latest",
             "gemini-3.5-flash",
             "gemini-3.5-flash-lite"
         ]
-        saved_model = self.config.get("gemini_model", "gemini-3.5-transcribe")
-        if saved_model not in gemini_models:
-            gemini_models.insert(0, saved_model)
+        saved_stt_model = self.config.get("gemini_model", "gemini-3.5-transcribe")
+        if saved_stt_model not in gemini_stt_models:
+            gemini_stt_models.insert(0, saved_stt_model)
             
         self.gemini_model_entry = ctk.CTkComboBox(
             gemini_cf.content_frame,
-            values=gemini_models,
+            values=gemini_stt_models,
             width=320,
             corner_radius=8,
             border_width=1,
@@ -436,8 +445,46 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
             dropdown_text_color="#E2E8F0",
             text_color="#E2E8F0"
         )
-        self.gemini_model_entry.set(saved_model)
-        self.gemini_model_entry.pack(anchor="w", padx=10, pady=(5, 10))
+        self.gemini_model_entry.set(saved_stt_model)
+        self.gemini_model_entry.pack(anchor="w", padx=10, pady=(2, 10))
+
+        # 2. AI Text Rewriting Model
+        lbl_gemini_rewrite = ctk.CTkLabel(
+            gemini_cf.content_frame,
+            text=_t("gemini_rewrite_model_lbl"),
+            text_color="#E2E8F0",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        lbl_gemini_rewrite.pack(anchor="w", padx=10, pady=(5, 2))
+
+        gemini_rewrite_models = [
+            "gemini-3.5-flash",
+            "gemini-flash-latest",
+            "gemini-flash-lite-latest",
+            "gemini-3.5-flash-lite",
+            "gemini-3.5-pro"
+        ]
+        saved_rewrite_model = self.config.get("gemini_rewrite_model", "gemini-3.5-flash")
+        if saved_rewrite_model not in gemini_rewrite_models:
+            gemini_rewrite_models.insert(0, saved_rewrite_model)
+
+        self.gemini_rewrite_model_entry = ctk.CTkComboBox(
+            gemini_cf.content_frame,
+            values=gemini_rewrite_models,
+            width=320,
+            corner_radius=8,
+            border_width=1,
+            border_color="#222F44",
+            fg_color="#0B0F19",
+            button_color="#1E293B",
+            button_hover_color="#334155",
+            dropdown_fg_color="#131A26",
+            dropdown_hover_color="#1E293B",
+            dropdown_text_color="#E2E8F0",
+            text_color="#E2E8F0"
+        )
+        self.gemini_rewrite_model_entry.set(saved_rewrite_model)
+        self.gemini_rewrite_model_entry.pack(anchor="w", padx=10, pady=(2, 12))
  
         # Groq API Settings (Collapsible Card)
         is_groq = self.engine_var.get() == "groq_cloud"
@@ -1126,6 +1173,7 @@ class Speech2AI2TextSettingsApp(ctk.CTk):
         self.config["selected_engine"] = self.engine_var.get()
         self.config["gemini_api_key"] = self.gemini_key_entry.get().strip()
         self.config["gemini_model"] = self.gemini_model_entry.get().strip()
+        self.config["gemini_rewrite_model"] = self.gemini_rewrite_model_entry.get().strip()
         self.config["groq_api_key"] = self.groq_key_entry.get().strip()
         self.config["rewrite_locally"] = self.rewrite_local_var.get()
         self.config["local_llm_model"] = self.ollama_model_entry.get().strip()
