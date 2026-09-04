@@ -357,8 +357,21 @@ def run_pipeline(mode="direct"):
                     pass
 
 if __name__ == "__main__":
+    import socket
     run_mode = sys.argv[1] if len(sys.argv) > 1 else "direct"
     
+    # If the background tray daemon is running, delegate via socket for instant warm-start
+    SOCKET_PATH = "/tmp/speech2ai.sock"
+    if os.path.exists(SOCKET_PATH) and "--no-socket" not in sys.argv:
+        try:
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            s.connect(SOCKET_PATH)
+            s.sendall(run_mode.encode())
+            s.close()
+            sys.exit(0)
+        except Exception:
+            pass
+
     config = load_config()
     if config.get("enable_gui_overlay", True):
         from gui_overlay import start_overlay_pipeline

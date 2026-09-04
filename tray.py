@@ -237,8 +237,15 @@ def start_recording_from_socket(overlay, config, mode, session):
     """Callback triggered on the main thread to run the visual pipeline."""
     from logger import log_info, log_error
     if os.path.exists(LOCK_FILE):
-        log_info("Recording is already active. Ignoring socket trigger.")
-        return
+        try:
+            mtime = os.path.getmtime(LOCK_FILE)
+            if time.time() - mtime > 15:
+                os.remove(LOCK_FILE)
+            else:
+                log_info("Recording is already active. Ignoring socket trigger.")
+                return
+        except Exception:
+            pass
         
     # Query which keys are currently held down for hold-to-record
     from audio_capture import get_pressed_keys
