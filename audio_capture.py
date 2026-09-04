@@ -30,12 +30,17 @@ def get_pressed_keys(display=None):
         x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
         x11.XCloseDisplay.restype = ctypes.c_int
         
-        # Open a thread-local display connection to ensure X11 thread safety
-        local_display = x11.XOpenDisplay(None)
-        if local_display:
+        target_display = display
+        close_when_done = False
+        if not target_display:
+            target_display = x11.XOpenDisplay(None)
+            close_when_done = True
+            
+        if target_display:
             keys = (ctypes.c_char * 32)()
-            x11.XQueryKeymap(local_display, keys)
-            x11.XCloseDisplay(local_display)
+            x11.XQueryKeymap(target_display, keys)
+            if close_when_done:
+                x11.XCloseDisplay(target_display)
             
             pressed = set()
             for i in range(32):
@@ -141,17 +146,41 @@ class AudioRecorder:
 
     @staticmethod
     def get_device_index_by_name(name):
-        if not name:
-            return None
         import sounddevice as sd
         try:
             devices = sd.query_devices()
+            if name:
+                for i, dev in enumerate(devices):
+                    if dev['name'] == name and dev['max_input_channels'] > 0:
+                        return i
+                for i, dev in enumerate(devices):
+                    if name.lower() in dev['name'].lower() and dev['max_input_channels'] > 0:
+                        return i
+
+            # When name is None or not specified, select the best real hardware microphone directly
+            # to avoid virtual ALSA wrapper plugins ('default', 'pipewire', 'pulse') that hang after suspend/dock.
+            hw_candidates = []
             for i, dev in enumerate(devices):
-                if dev['name'] == name and dev['max_input_channels'] > 0:
+                if dev['max_input_channels'] <= 0:
+                    continue
+                dname = dev['name'].lower()
+                if any(bad in dname for bad in ['default', 'pipewire', 'pulse', 'dmix', 'null']):
+                    continue
+                hw_candidates.append((i, dev))
+
+            # 1. Prefer external conference or dock microphone if connected (Jabra, ThinkPad Dock, USB webcam/mic)
+            for i, dev in hw_candidates:
+                dname = dev['name'].lower()
+                if any(pref in dname for pref in ['jabra', 'thinkpad', 'usb', 'link']):
                     return i
-            for i, dev in enumerate(devices):
-                if name in dev['name'] and dev['max_input_channels'] > 0:
+
+            # 2. Fallback to internal laptop hardware mic (e.g. sof-soundwire)
+            for i, dev in hw_candidates:
+                if 'soundwire' in dev['name'].lower():
                     return i
+
+            if hw_candidates:
+                return hw_candidates[0][0]
         except Exception:
             pass
         return None
@@ -159,17 +188,25 @@ class AudioRecorder:
     def __init__(self, sample_rate=16000, channels=1, device_name=None):
         self.sample_rate = sample_rate
         self.channels = channels
-        self.capture_rate = 48000
-        self.device_index = self.get_device_index_by_name(device_name)
-        # Dynamically determine supported channels for the target device
-        self.capture_channels = 2
+        # Re-initialize sounddevice to pick up newly connected dock/USB microphones after sleep/dock
         import sounddevice as sd
         try:
-            target_idx = self.device_index if self.device_index is not None else sd.default.device[0]
-            if target_idx is not None and target_idx >= 0:
-                dev_info = sd.query_devices(target_idx)
+            sd._terminate()
+            sd._initialize()
+        except Exception:
+            pass
+        self.device_index = self.get_device_index_by_name(device_name)
+        # Dynamically determine supported channels & sample rate for the chosen device
+        self.capture_rate = 48000
+        self.capture_channels = 2
+        try:
+            if self.device_index is not None:
+                dev_info = sd.query_devices(self.device_index)
                 max_ch = int(dev_info.get("max_input_channels", 2))
                 self.capture_channels = max(1, min(2, max_ch))
+                native_sr = int(dev_info.get("default_samplerate", 48000))
+                if native_sr in (16000, 44100, 48000):
+                    self.capture_rate = native_sr
         except Exception:
             self.capture_channels = 1
 
@@ -236,6 +273,7 @@ class AudioRecorder:
                     
                     min_duration = 0.3
                     released_consecutive_count = 0
+                    none_consecutive_count = 0
                     while True:
                         elapsed = time.time() - start_time
                         
@@ -271,14 +309,20 @@ class AudioRecorder:
                         if use_key_release and elapsed >= min_duration:
                             current_keys = get_pressed_keys(display=display)
                             if current_keys is not None:
+                                none_consecutive_count = 0
                                 released = initial_keys - current_keys
                                 if released:
                                     released_consecutive_count += 1
-                                    if released_consecutive_count >= 3:
+                                    if released_consecutive_count >= 2:
                                         log_info(f"Recording stopped: Key release detected (released keycodes: {released}) after {elapsed:.2f}s.")
                                         break
                                 else:
                                     released_consecutive_count = 0
+                            else:
+                                none_consecutive_count += 1
+                                if none_consecutive_count >= 4:
+                                    log_info(f"Recording stopped: Key state lost after {elapsed:.2f}s.")
+                                    break
                         
             except Exception as e:
                 log_error(f"Error during audio recording stream: {e}")
