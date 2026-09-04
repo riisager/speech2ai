@@ -160,8 +160,18 @@ class AudioRecorder:
         self.sample_rate = sample_rate
         self.channels = channels
         self.capture_rate = 48000
-        self.capture_channels = 2
         self.device_index = self.get_device_index_by_name(device_name)
+        # Dynamically determine supported channels for the target device
+        self.capture_channels = 2
+        import sounddevice as sd
+        try:
+            target_idx = self.device_index if self.device_index is not None else sd.default.device[0]
+            if target_idx is not None and target_idx >= 0:
+                dev_info = sd.query_devices(target_idx)
+                max_ch = int(dev_info.get("max_input_channels", 2))
+                self.capture_channels = max(1, min(2, max_ch))
+        except Exception:
+            self.capture_channels = 1
 
     def play_beep(self, frequency=550, duration=0.08, volume=0.15):
         """Backwards-compatible helper that delegates to play_audio_cue."""
@@ -209,8 +219,19 @@ class AudioRecorder:
             start_time = time.time()
             recorded_chunks = []
             
+            # Determine actual channels supported by active microphone
+            capture_channels = self.capture_channels
             try:
-                with sd.InputStream(samplerate=self.capture_rate, channels=self.capture_channels, 
+                target_idx = self.device_index if self.device_index is not None else sd.default.device[0]
+                if target_idx is not None and target_idx >= 0:
+                    dev_info = sd.query_devices(target_idx)
+                    max_ch = int(dev_info.get("max_input_channels", 2))
+                    capture_channels = max(1, min(capture_channels, max_ch))
+            except Exception:
+                pass
+
+            try:
+                with sd.InputStream(samplerate=self.capture_rate, channels=capture_channels, 
                                      device=self.device_index, dtype='float32') as stream:
                     
                     min_duration = 0.3
